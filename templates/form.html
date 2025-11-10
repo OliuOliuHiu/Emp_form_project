@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Employee Competency Form</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 14px; }
+    .form-label { font-weight: 500; }
+    h5 { margin-top: 30px; font-weight: bold; }
+    input[readonly] {
+      background-color: #f0f0f0 !important;
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+
+<body class="p-4">
+  <div class="container">
+
+    <h3 class="mb-3">Employee Competency Form</h3>
+
+    <form action="/submit" method="post" id="employeeForm" onsubmit="return validateForm();">
+
+      <!-- Basic Info -->
+      <div class="row mb-3">
+        <div class="col-md-2">
+          <label class="form-label">Year</label>
+          <input type="text" name="year" class="form-control" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Code</label>
+          <input type="text" name="code" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Title</label>
+          <select name="title" class="form-select" id="titleSelect" required>
+            <option value="">-- Select Title --</option>
+            <option value="Officer">Officer</option>
+            <option value="Senior">Senior</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="Deputy Manager">Deputy Manager</option>
+            <option value="Manager">Manager</option>
+            <option value="Deputy Director">Deputy Director</option>
+            <option value="Director">Director</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Division & Department -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Division</label>
+          <select name="division" class="form-select" required>
+            <option value="">-- Select Division --</option>
+            <option>BOM 1</option><option>BOM 2</option>
+            <option>Company Secretariat</option>
+            <option>Product Department</option>
+            <option>Marketing Division</option>
+            <option>Customer Care Center</option>
+            <option>Finance Division</option>
+            <option>Accounting Division</option>
+            <option>Risk Management Division</option>
+            <option>Securities Service Division</option>
+            <option>Internal control Division</option>
+            <option>Dealing Division</option>
+            <option>Advisory Division</option>
+            <option>Research Division</option>
+            <option>Legal Affairs Division</option>
+            <option>IT Division</option>
+            <option>Human Resources Division</option>
+            <option>General Affairs Division</option>
+            <option>Brokerage Division</option>
+            <option>Covered Warrant Division</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Department</label>
+          <select name="department" class="form-select" required>
+            <option value="">-- Select Department --</option>
+            <option value="No department">No department</option>
+            <option>Brokerage Management Department</option>
+            <option>Secretariat</option>
+            <option>Account Management Department</option>
+            <option>Institutional Business Department</option>
+            <option>Network Management Department</option>
+            <option>Software Department</option>
+            <option>System Department</option>
+            <option>Talent Acquisition Department</option>
+            <option>Total Rewards Department</option>
+            <option>Learning & Development Department</option>
+            <option>Employee Engagement & Employer Branding Department</option>
+            <option>Settlement & Margin Department</option>
+            <option>Depository Trading Department</option>
+            <option>Business Support Department</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Created Date -->
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <label class="form-label">Created Date (dd/mm/yyyy)</label>
+          <input type="text" name="created_at" class="form-control" placeholder="e.g. 29/10/2025" required>
+        </div>
+      </div>
+
+<!-- Core Competencies -->
+<h5 class="mt-4">Core Competencies (1–5)</h5>
+<div class="row g-3">
+  <div class="col-md-4"><label>Communication</label><input type="number" name="communication" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Continuous Learning</label><input type="number" name="continuous_learning" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Critical Thinking</label><input type="number" name="critical_thinking" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Data Analysis</label><input type="number" name="data_analysis" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Digital Literacy</label><input type="number" name="digital_literacy" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Problem Solving</label><input type="number" name="problem_solving" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4 strategic-field"><label>Strategic Thinking</label><input type="number" name="strategic_thinking" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4 strategic-field"><label>Talent Management</label><input type="number" name="talent_management" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4 strategic-field"><label>Teamwork & Leadership</label><input type="number" name="teamwork_leadership" class="form-control" min="1" max="5"></div>
+</div>
+
+<!-- Core Competencies (req) -->
+<h5 class="mt-4">Core Competencies (req) (1–5)</h5>
+<div class="row g-3">
+  <div class="col-md-4"><label>Comm (req)</label><input type="number" name="communication_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Cont. Learn (req)</label><input type="number" name="continuous_learning_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Crit. Think (req)</label><input type="number" name="critical_thinking_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Data Analysis (req)</label><input type="number" name="data_analysis_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Digital Lit (req)</label><input type="number" name="digital_literacy_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Prob. Solving (req)</label><input type="number" name="problem_solving_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4 strategic-field"><label>Strategic Think (req)</label><input type="number" name="strategic_thinking_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4 strategic-field"><label>Talent Mgmt (req)</label><input type="number" name="talent_management_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4 strategic-field"><label>Teamwork & Lead (req)</label><input type="number" name="teamwork_leadership_req" class="form-control" min="1" max="5"></div>
+</div>
+
+<!-- New Competencies -->
+<h5 class="mt-4">New Competencies (1–5)</h5>
+<div class="row g-3">
+  <div class="col-md-4"><label>Creative Thinking</label><input type="number" name="creative_thinking" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Resilience</label><input type="number" name="resilience" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>AI & Big Data</label><input type="number" name="ai_bigdata" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Analytical Thinking</label><input type="number" name="analytical_thinking" class="form-control" min="1" max="5"></div>
+</div>
+
+<!-- New Competencies (req) -->
+<h5 class="mt-4">New Competencies (req) (1–5)</h5>
+<div class="row g-3">
+  <div class="col-md-4"><label>Creative Think (req)</label><input type="number" name="creative_thinking_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Resilience (req)</label><input type="number" name="resilience_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>AI & Big Data (req)</label><input type="number" name="ai_bigdata_req" class="form-control" min="1" max="5"></div>
+  <div class="col-md-4"><label>Analytical Think (req)</label><input type="number" name="analytical_thinking_req" class="form-control" min="1" max="5"></div>
+</div>
+
+      <button type="submit" class="btn btn-primary mt-3">Submit</button>
+    </form>
+
+    <hr class="my-4">
+
+    <!-- Upload / Download / View -->
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <a href="/download-template" class="btn btn-success btn-sm">
+          <i class="bi bi-file-earmark-excel"></i> Download Template
+        </a>
+        <form action="/upload" method="POST" enctype="multipart/form-data" style="display:inline;">
+          <label class="btn btn-primary btn-sm mb-0">
+            <i class="bi bi-upload"></i> Upload File
+            <input type="file" name="file" accept=".xlsx" hidden onchange="this.form.submit()">
+          </label>
+        </form>
+      </div>
+      <a href="/employees" class="btn btn-secondary btn-sm">
+        <i class="bi bi-people"></i> View Employee List
+      </a>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    const titleSelect = document.getElementById("titleSelect");
+    const strategicFields = document.querySelectorAll(".strategic-field input");
+
+    function toggleStrategicFields() {
+      const val = titleSelect.value;
+      strategicFields.forEach(input => {
+        if (val === "Officer" || val === "Senior") {
+          input.value = "";
+          input.setAttribute("readonly", true);
+        } else {
+          input.removeAttribute("readonly");
+        }
+      });
+    }
+
+    titleSelect.addEventListener("change", toggleStrategicFields);
+    toggleStrategicFields();
+
+    function validateForm() {
+      const form = document.getElementById("employeeForm");
+      const requiredFields = form.querySelectorAll("[required]");
+      for (const field of requiredFields) {
+        if (!field.value.trim()) {
+          alert("Please fill in all required fields before submitting!");
+          field.focus();
+          return false;
+        }
+      }
+
+      const competencyInputs = form.querySelectorAll("input[type=number]");
+      for (const input of competencyInputs) {
+        if (input.hasAttribute("readonly")) continue; // skip locked fields
+        const val = Number(input.value);
+        if (isNaN(val) || val < 1 || val > 5) {
+          alert("All competency scores must be between 1 and 5.");
+          input.focus();
+          return false;
+        }
+      }
+
+      const dateField = form.querySelector("[name='created_at']");
+      const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+      if (!dateRegex.test(dateField.value.trim())) {
+        alert("Please enter a valid date (dd/mm/yyyy).");
+        dateField.focus();
+        return false;
+      }
+
+      return true;
+    }
+  </script>
+</body>
+</html>

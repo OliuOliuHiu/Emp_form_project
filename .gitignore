@@ -1,0 +1,27 @@
+# Môi trường ảo
+.venv/
+
+
+# File Python biên dịch
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Thư mục upload
+uploads/
+
+# File tạm, log
+*.log
+*.tmp
+
+# File hệ thống / IDE
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Pipenv / poetry / cache
+*.lock
+.cache/
