@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import os
 from datetime import datetime
+import random
 
 app = Flask(__name__)
 app.secret_key = "your_secret"
@@ -200,7 +201,7 @@ def upload_excel():
     # Đọc file Excel
     df = pd.read_excel(file)
     df.columns = [str(c).strip().lower() for c in df.columns]
-    print("📘 Columns in Excel:", list(df.columns))
+    print("Columns in Excel:", list(df.columns))
 
     df = df.fillna("")
 
@@ -306,11 +307,11 @@ def upload_excel():
             ))
 
         except Exception as e:
-            print(f"⚠️ Upload error: {e}")
+            print(f"Upload error: {e}")
 
     conn.commit()
     conn.close()
-    print("✅ Upload completed successfully.")
+    print("Upload completed successfully.")
     return redirect(url_for("employees"))
 
 # --- Download Template ---
@@ -345,9 +346,9 @@ def delete_selected():
         c.execute(f"DELETE FROM employee WHERE id IN ({placeholders})", selected_ids)
         conn.commit()
         conn.close()
-        print(f"🗑 Deleted {len(selected_ids)} records.")
+        print(f"Deleted {len(selected_ids)} records.")
     except Exception as e:
-        print("⚠️ Delete error:", e)
+        print(" Delete error:", e)
 
     return redirect(url_for("employees"))
 
@@ -363,6 +364,75 @@ def api_employees():
     conn.close()
     return jsonify([dict(r) for r in rows])
 
+
+# @app.route("/seed")
+# def seed():
+#     conn = sqlite3.connect("employee.db")
+#     c = conn.cursor()
+
+#     titles = ["Officer", "Senior", "Manager", "Deputy Manager"]
+#     departments = ["System Department", "Software Development", "IT Division", "Secretariat"]
+#     divisions = ["BOM1", "BOM2", "Product Department", "Finance Division"]
+
+#     # --- Helper ---
+#     def rand_score():
+#         return random.randint(1, 5)
+
+#     def classify(scores, title):
+#         vals = scores[:]
+#         if title in ["Officer", "Senior"]:
+#             vals = vals[:6]  # bỏ 3 competency
+#         pct = (sum(vals) / (len(vals) * 5)) * 100
+#         if pct < 70:
+#             return "Low"
+#         elif pct > 90:
+#             return "High"
+#         return "Medium"
+
+#     # --- Tạo 50 nhân viên ---
+#     for i in range(1, 10):
+#         title = random.choice(titles)
+#         department = random.choice(departments)
+#         division = random.choice(divisions)
+#         full_name = random.choice([
+#             "Nguyễn An", "Trần Vy", "Lê Minh", "Phạm Huy", "Hoàng Lan",
+#             "Võ Tâm", "Lý Quân", "Ngô Bình", "Đặng Mai", "Phan Long",
+#             "Bùi Dương", "Huỳnh Khoa", "Đỗ Vy", "Vũ Nam", "Trịnh Anh",
+#             "Trần Hà", "Lâm Hạnh", "Lê Hòa", "Nguyễn Tú", "Hoàng Bảo"
+#         ])
+
+#         core = [rand_score() for _ in range(9)]
+#         core_req = [rand_score() for _ in range(9)]
+#         new = [rand_score() for _ in range(4)]
+#         new_req = [rand_score() for _ in range(4)]
+
+#         class_core = classify(core, title)
+#         class_new = classify(new, title)
+
+#         c.execute('''
+#             INSERT INTO employee (
+#                 year, code, full_name, title, department, division,
+#                 communication, continuous_learning, critical_thinking,
+#                 data_analysis, digital_literacy, problem_solving,
+#                 strategic_thinking, talent_management, teamwork_leadership,
+#                 communication_req, continuous_learning_req, critical_thinking_req,
+#                 data_analysis_req, digital_literacy_req, problem_solving_req,
+#                 strategic_thinking_req, talent_management_req, teamwork_leadership_req,
+#                 creative_thinking, resilience, ai_bigdata, analytical_thinking,
+#                 creative_thinking_req, resilience_req, ai_bigdata_req, analytical_thinking_req,
+#                 classification_core, classification_new
+#             )
+#             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+#         ''', (
+#             2025, f"E{i:03}", full_name, title,
+#             department, division,
+#             *core, *core_req, *new, *new_req,
+#             class_core, class_new
+#         ))
+
+#     conn.commit()
+#     conn.close()
+#     return redirect(url_for("employees"))
 
 # --- MAIN ---
 if __name__ == "__main__":
