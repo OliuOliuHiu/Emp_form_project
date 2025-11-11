@@ -4,60 +4,94 @@
   <meta charset="utf-8">
   <title>Saved Employees</title>
 
+  <!-- Bootstrap & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
-<body class="p-4">
+<body class="p-4 bg-light">
   <div class="container">
 
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-people-fill"></i> Saved Employees</h3>
+      <h3 class="text-primary"><i class="bi bi-people-fill"></i> Saved Employees</h3>
       <div class="d-flex gap-2">
         <a href="/export" class="btn btn-success btn-sm">
           <i class="bi bi-file-earmark-excel"></i> Download Excel
         </a>
-        <a href="/" class="btn btn-secondary btn-sm">← Back to Form</a>
+        <a href="/" class="btn btn-secondary btn-sm">
+          ← Back to Form
+        </a>
       </div>
     </div>
 
-    <div class="table-card">
-      <form action="/delete-selected" method="POST" onsubmit="return confirm('Delete selected employees?');">
-        <div class="table-wrapper">
-          <table class="table table-bordered table-hover table-sm align-middle">
-            <thead>
-              <tr>
-                <th><input type="checkbox" id="selectAll"></th>
-                <th>ID</th>
-                <th>Year</th>
-                <th>Code</th>
-                <th>Full Name</th>
-                <th>Title</th>
-                <th>Department</th>
-                <th>Division</th>
-                <th>Created Date</th>
-                <th>Classification (Core)</th>
-                <th>Classification (New)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for r in rows %}
-              <tr>
-                <td><input type="checkbox" name="selected_ids" value="{{ r['id'] }}"></td>
-                <td>{{ r['id'] }}</td>
-                <td>{{ r['year'] }}</td>
-                <td>{{ r['code'] }}</td>
-                <td>{{ r['full_name'] }}</td>
-                <td>{{ r['title'] }}</td>
-                <td>{{ r['department'] }}</td>
-                <td>{{ r['division'] }}</td>
-                <td>{{ r['created_at'] }}</td>
-                <td>{{ r['classification_core'] }}</td>
-                <td>{{ r['classification_new'] }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <button type="submit" class
+    <!-- Table -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form action="/delete-selected" method="POST" onsubmit="return confirm('Are you sure you want to delete selected employees?');">
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm align-middle text-center">
+              <thead class="table-primary">
+                <tr>
+                  <th><input type="checkbox" id="selectAll"></th>
+                  <th>ID</th>
+                  <th>Year</th>
+                  <th>Code</th>
+                  <th>Full Name</th>
+                  <th>Title</th>
+                  <th>Department</th>
+                  <th>Division</th>
+                  <th>Created Date</th>
+                  <th>Classification (Core)</th>
+                  <th>Classification (New)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if rows %}
+                  {% for r in rows %}
+                  <tr>
+                    <td><input type="checkbox" name="selected_ids" value="{{ r['id'] }}"></td>
+                    <td>{{ r['id'] }}</td>
+                    <td>{{ r['year'] }}</td>
+                    <td>{{ r['code'] }}</td>
+                    <td>{{ r['full_name'] }}</td>
+                    <td>{{ r['title'] }}</td>
+                    <td>{{ r['department'] }}</td>
+                    <td>{{ r['division'] }}</td>
+                    <td>{{ r['created_at'] }}</td>
+                    <td>{{ r['classification_core'] }}</td>
+                    <td>{{ r['classification_new'] }}</td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="11" class="text-muted py-3">No employees found.</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Delete button -->
+          <div class="mt-2 text-end">
+            <button type="submit" class="btn btn-danger btn-sm">
+              <i class="bi bi-trash"></i> Delete Selected
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JS: Select All Checkbox -->
+  <script>
+    document.getElementById('selectAll').addEventListener('change', function() {
+      const checkboxes = document.querySelectorAll('input[name="selected_ids"]');
+      checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+  </script>
+
+</body>
+</html>
