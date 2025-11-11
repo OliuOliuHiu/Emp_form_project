@@ -1,27 +1,70 @@
-# Môi trường ảo
-.venv/
-
-
-# File Python biên dịch
+# ==========================
+# Python
+# ==========================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Thư mục upload
-uploads/
-
-# File tạm, log
 *.log
-*.tmp
+*.sqlite3
+*.db
+*.egg-info/
+.env
 
-# File hệ thống / IDE
-.DS_Store
+# ==========================
+# Virtual Environment
+# ==========================
+.venv/
+venv/
+env/
+ENV/
+
+# ==========================
+# Flask specific
+# ==========================
+instance/
+uploads/
+*.tar
+*.pid
+
+# ==========================
+# Logs & Cache
+# ==========================
+*.log
+*.lock
+*.bak
 *.swp
-*.swo
+*.tmp
+.cache/
+__pycache__/
+
+# ==========================
+# IDE / Editor
+# ==========================
 .vscode/
 .idea/
+*.code-workspace
 
-# Pipenv / poetry / cache
-*.lock
-.cache/
+# ==========================
+# System files (Windows/macOS)
+# ==========================
+Thumbs.db
+desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# ==========================
+# Export files
+# ==========================
+*.xlsx
+*.csv
+*.zip
+*.tar.gz
+*.bak
+
+# ==========================
+# Environment & Config
+# ==========================
+.env
+.env.*
+Competency Monitor_Update.pbix
