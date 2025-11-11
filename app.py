@@ -17,14 +17,14 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 load_dotenv()
 
 
-# =========================================================
-# 1️ Hàm kết nối database (auto detect)
-# =========================================================
+
+# 1️ Connect database (auto detect)
+
 def get_connection():
     db_url = os.getenv("DATABASE_URL", "sqlite:///employee.db")
 
     if db_url.startswith("postgresql://"):
-        print("Connecting to PostgreSQL (Render)...")
+        print(" Connecting to PostgreSQL (Render)...")
         conn = psycopg2.connect(db_url)
     else:
         print("Using local SQLite database...")
@@ -34,20 +34,18 @@ def get_connection():
     return conn
 
 
-# =========================================================
+
 # 2️ Helper: Placeholder cho query
-# =========================================================
+
 def get_placeholder(conn, count):
-    """Trả về placeholder phù hợp (SQLite: ?, PostgreSQL: %s)"""
     if isinstance(conn, sqlite3.Connection):
         return ",".join(["?"] * count)
     else:
         return ",".join(["%s"] * count)
 
 
-# =========================================================
-# 3️ Hàm khởi tạo database (chỉ dùng local)
-# =========================================================
+
+# 3️ Initialize a database
 def init_db():
     conn = get_connection()
     c = conn.cursor()
@@ -111,27 +109,28 @@ def init_db():
     conn.close()
 
 
-# =========================================================
-# 4️ ROUTES
-# =========================================================
+# 4️ Routes
+
 @app.route("/")
 def index():
     return render_template("form.html")
 
 
+# --- Hiển thị danh sách nhân viên ---
 @app.route("/employees")
 def employees():
     conn = get_connection()
-    if isinstance(conn, sqlite3.Connection):
-        conn.row_factory = sqlite3.Row
-
     c = conn.cursor()
-    c.execute("SELECT * FROM employee ORDER BY id DESC")
-    rows = c.fetchall()
+    c.execute("SELECT * FROM public.employee ORDER BY id DESC")
+
+    columns = [desc[0] for desc in c.description]
+    rows = [dict(zip(columns, row)) for row in c.fetchall()]
+
     conn.close()
     return render_template("employees.html", rows=rows)
 
 
+# --- Gửi form thêm nhân viên ---
 @app.route("/submit", methods=["POST"])
 def submit():
     f = request.form
@@ -200,7 +199,7 @@ def submit():
     placeholders = get_placeholder(conn, 34)
     c = conn.cursor()
     c.execute(f'''
-        INSERT INTO employee (
+        INSERT INTO public.employee (
             year, code, full_name, title, department, division,
             communication, continuous_learning, critical_thinking,
             data_analysis, digital_literacy, problem_solving,
@@ -227,14 +226,32 @@ def submit():
     return redirect("/employees")
 
 
-# =========================================================
-# 5 API + Export
-# =========================================================
+# --- Delete employees have been selected ---
+@app.route("/delete-selected", methods=["POST"])
+def delete_selected():
+    selected_ids = request.form.getlist("selected_ids")
+    if not selected_ids:
+        return redirect(url_for("employees"))
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    placeholder = get_placeholder(conn, len(selected_ids))
+    c.execute(f"DELETE FROM public.employee WHERE id IN ({placeholder})", selected_ids)
+
+    conn.commit()
+    conn.close()
+    print(f"🗑 Deleted {len(selected_ids)} employees.")
+    return redirect(url_for("employees"))
+
+
+
+# 5️ API + Export
 @app.route("/api/employees")
 def api_employees():
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM employee ORDER BY id DESC")
+    c.execute("SELECT * FROM public.employee ORDER BY id DESC")
     columns = [desc[0] for desc in c.description]
     data = [dict(zip(columns, row)) for row in c.fetchall()]
     conn.close()
@@ -244,7 +261,7 @@ def api_employees():
 @app.route("/export")
 def export_data():
     conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM employee ORDER BY id DESC", conn)
+    df = pd.read_sql_query("SELECT * FROM public.employee ORDER BY id DESC", conn)
     conn.close()
 
     output_path = os.path.join(app.root_path, "static", "employee_data.xlsx")
@@ -252,11 +269,9 @@ def export_data():
     return send_file(output_path, as_attachment=True)
 
 
-# =========================================================
-# 6️ MAIN ENTRY
-# =========================================================
-if __name__ == "__main__":
-    # Khi chạy local thì mở dòng dưới, còn khi deploy Render thì comment đi
-    init_db()
 
+# 6️ MAIN ENTRY
+
+if __name__ == "__main__":
+    # init_db()
     app.run(host="0.0.0.0", port=5000, debug=True)
