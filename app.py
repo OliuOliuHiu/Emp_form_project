@@ -35,7 +35,18 @@ def get_connection():
 
 
 # =========================================================
-# 2️ Hàm khởi tạo database (nếu chưa có)
+# 2️ Helper: Placeholder cho query
+# =========================================================
+def get_placeholder(conn, count):
+    """Trả về placeholder phù hợp (SQLite: ?, PostgreSQL: %s)"""
+    if isinstance(conn, sqlite3.Connection):
+        return ",".join(["?"] * count)
+    else:
+        return ",".join(["%s"] * count)
+
+
+# =========================================================
+# 3️ Hàm khởi tạo database (chỉ dùng local)
 # =========================================================
 def init_db():
     conn = get_connection()
@@ -101,7 +112,7 @@ def init_db():
 
 
 # =========================================================
-# 3️ Routes
+# 4️ ROUTES
 # =========================================================
 @app.route("/")
 def index():
@@ -111,7 +122,9 @@ def index():
 @app.route("/employees")
 def employees():
     conn = get_connection()
-    conn.row_factory = sqlite3.Row if isinstance(conn, sqlite3.Connection) else None
+    if isinstance(conn, sqlite3.Connection):
+        conn.row_factory = sqlite3.Row
+
     c = conn.cursor()
     c.execute("SELECT * FROM employee ORDER BY id DESC")
     rows = c.fetchall()
@@ -148,7 +161,7 @@ def submit():
 
     data = {k: safe_int(f.get(k)) for k in all_fields}
 
-    # Bỏ qua strategic/talent/teamwork nếu là Officer hoặc Senior
+    # Ẩn 3 competency nếu là Officer hoặc Senior
     if title in ["Officer", "Senior"]:
         skip_fields = [
             "strategic_thinking", "talent_management", "teamwork_leadership",
@@ -184,8 +197,9 @@ def submit():
     class_new = classify(["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"])
 
     conn = get_connection()
+    placeholders = get_placeholder(conn, 34)
     c = conn.cursor()
-    c.execute('''
+    c.execute(f'''
         INSERT INTO employee (
             year, code, full_name, title, department, division,
             communication, continuous_learning, critical_thinking,
@@ -198,7 +212,7 @@ def submit():
             creative_thinking_req, resilience_req, ai_bigdata_req, analytical_thinking_req,
             classification_core, classification_new
         )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES ({placeholders})
     ''', (
         year, code, full_name, title, department, division,
         *[data[k] for k in all_fields[:9]],
@@ -207,132 +221,26 @@ def submit():
         *[data[k] for k in all_fields[22:26]],
         class_core, class_new
     ))
+
     conn.commit()
     conn.close()
     return redirect("/employees")
 
 
-# --- Upload Excel ---
-@app.route("/upload", methods=["POST"])
-def upload_excel():
-    file = request.files.get("file")
-    if not file:
-        return "No file uploaded", 400
-
-    df = pd.read_excel(file)
-    df.columns = [str(c).strip().lower() for c in df.columns]
-    df = df.fillna("")
-
+# =========================================================
+# 5 API + Export
+# =========================================================
+@app.route("/api/employees")
+def api_employees():
     conn = get_connection()
     c = conn.cursor()
-
-    for _, row in df.iterrows():
-        try:
-            def safe_int(val):
-                try:
-                    val = int(val)
-                    return min(max(val, 1), 5)
-                except:
-                    return None
-
-            core = {
-                "communication": safe_int(row.get("communication")),
-                "continuous_learning": safe_int(row.get("continuous_learning")),
-                "critical_thinking": safe_int(row.get("critical_thinking")),
-                "data_analysis": safe_int(row.get("data_analysis")),
-                "digital_literacy": safe_int(row.get("digital_literacy")),
-                "problem_solving": safe_int(row.get("problem_solving")),
-                "strategic_thinking": safe_int(row.get("strategic_thinking")),
-                "talent_management": safe_int(row.get("talent_management")),
-                "teamwork_leadership": safe_int(row.get("teamwork_leadership")),
-            }
-
-            core_req = {
-                "communication_req": safe_int(row.get("communication_req")),
-                "continuous_learning_req": safe_int(row.get("continuous_learning_req")),
-                "critical_thinking_req": safe_int(row.get("critical_thinking_req")),
-                "data_analysis_req": safe_int(row.get("data_analysis_req")),
-                "digital_literacy_req": safe_int(row.get("digital_literacy_req")),
-                "problem_solving_req": safe_int(row.get("problem_solving_req")),
-                "strategic_thinking_req": safe_int(row.get("strategic_thinking_req")),
-                "talent_management_req": safe_int(row.get("talent_management_req")),
-                "teamwork_leadership_req": safe_int(row.get("teamwork_leadership_req")),
-            }
-
-            new = {
-                "creative_thinking": safe_int(row.get("creative_thinking")),
-                "resilience": safe_int(row.get("resilience")),
-                "ai_bigdata": safe_int(row.get("ai_bigdata")),
-                "analytical_thinking": safe_int(row.get("analytical_thinking")),
-            }
-
-            new_req = {
-                "creative_thinking_req": safe_int(row.get("creative_thinking_req")),
-                "resilience_req": safe_int(row.get("resilience_req")),
-                "ai_bigdata_req": safe_int(row.get("ai_bigdata_req")),
-                "analytical_thinking_req": safe_int(row.get("analytical_thinking_req")),
-            }
-
-            def classify(scores_dict, title):
-                vals = []
-                for k, v in scores_dict.items():
-                    if title in ["Officer", "Senior"] and k in [
-                        "strategic_thinking", "talent_management", "teamwork_leadership"
-                    ]:
-                        continue
-                    if v:
-                        vals.append(v)
-                if not vals:
-                    return "N/A"
-                pct = (sum(vals) / (len(vals) * 5)) * 100
-                if pct < 70:
-                    return "Low"
-                elif pct > 90:
-                    return "High"
-                return "Medium"
-
-            class_core = classify(core, row.get("title"))
-            class_new = classify(new, row.get("title"))
-
-            c.execute('''
-                INSERT INTO employee (
-                    year, code, full_name, title, department, division,
-                    communication, continuous_learning, critical_thinking,
-                    data_analysis, digital_literacy, problem_solving,
-                    strategic_thinking, talent_management, teamwork_leadership,
-                    communication_req, continuous_learning_req, critical_thinking_req,
-                    data_analysis_req, digital_literacy_req, problem_solving_req,
-                    strategic_thinking_req, talent_management_req, teamwork_leadership_req,
-                    creative_thinking, resilience, ai_bigdata, analytical_thinking,
-                    creative_thinking_req, resilience_req, ai_bigdata_req, analytical_thinking_req,
-                    classification_core, classification_new
-                )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ''', (
-                row.get("year"), row.get("code"), row.get("full_name"), row.get("title"),
-                row.get("department"), row.get("division"),
-                *core.values(), *core_req.values(),
-                *new.values(), *new_req.values(),
-                class_core, class_new
-            ))
-
-        except Exception as e:
-            print(f"Upload error: {e}")
-
-    conn.commit()
+    c.execute("SELECT * FROM employee ORDER BY id DESC")
+    columns = [desc[0] for desc in c.description]
+    data = [dict(zip(columns, row)) for row in c.fetchall()]
     conn.close()
-    print("Upload completed successfully.")
-    return redirect(url_for("employees"))
+    return jsonify(data)
 
 
-# --- Download template ---
-@app.route("/download-template")
-def download_template():
-    file_path = os.path.join(app.root_path, "static", "employee_template.xlsx")
-    return send_file(file_path, as_attachment=True)
-
-
-# --- Export Excel ---
 @app.route("/export")
 def export_data():
     conn = get_connection()
@@ -344,43 +252,11 @@ def export_data():
     return send_file(output_path, as_attachment=True)
 
 
-# --- Delete selected ---
-@app.route("/delete-selected", methods=["POST"])
-def delete_selected():
-    selected_ids = request.form.getlist("selected_ids")
-    if not selected_ids:
-        return redirect(url_for("employees"))
-
-    try:
-        conn = get_connection()
-        c = conn.cursor()
-        placeholders = ",".join("?" if isinstance(conn, sqlite3.Connection) else "%s" for _ in selected_ids)
-        query = f"DELETE FROM employee WHERE id IN ({placeholders})"
-        c.execute(query, selected_ids)
-        conn.commit()
-        conn.close()
-        print(f"🗑 Deleted {len(selected_ids)} records.")
-    except Exception as e:
-        print("Delete error:", e)
-
-    return redirect(url_for("employees"))
-
-
-# --- API for Power BI ---
-@app.route("/api/employees")
-def api_employees():
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM employee")
-    columns = [desc[0] for desc in c.description]
-    data = [dict(zip(columns, row)) for row in c.fetchall()]
-    conn.close()
-    return jsonify(data)
-
-
 # =========================================================
-# 4 Main
+# 6️ MAIN ENTRY
 # =========================================================
 if __name__ == "__main__":
+    # Khi chạy local thì mở dòng dưới, còn khi deploy Render thì comment đi
     init_db()
-    app.run(debug=True)
+
+    app.run(host="0.0.0.0", port=5000, debug=True)
