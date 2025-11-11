@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, redirect, send_file, url_for, jsonify
-import sqlite3
-import pandas as pd
 import os
+import pandas as pd
+import sqlite3
+import psycopg2
+from urllib.parse import urlparse
 from datetime import datetime
-import random
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 app.secret_key = "your_secret"
@@ -11,13 +13,42 @@ app.secret_key = "your_secret"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# --- Khởi tạo DB ---
+# --- Load environment variables ---
+load_dotenv()
+
+
+# =========================================================
+# 1️ Hàm kết nối database (auto detect)
+# =========================================================
+def get_connection():
+    db_url = os.getenv("DATABASE_URL", "sqlite:///employee.db")
+
+    if db_url.startswith("postgresql://"):
+        print("Connecting to PostgreSQL (Render)...")
+        conn = psycopg2.connect(db_url)
+    else:
+        print("Using local SQLite database...")
+        db_path = db_url.replace("sqlite:///", "")
+        conn = sqlite3.connect(db_path)
+
+    return conn
+
+
+# =========================================================
+# 2️ Hàm khởi tạo database (nếu chưa có)
+# =========================================================
 def init_db():
-    conn = sqlite3.connect('employee.db')
+    conn = get_connection()
     c = conn.cursor()
-    c.execute('''
+
+    if isinstance(conn, sqlite3.Connection):
+        id_type = "INTEGER PRIMARY KEY AUTOINCREMENT"
+    else:
+        id_type = "SERIAL PRIMARY KEY"
+
+    c.execute(f'''
     CREATE TABLE IF NOT EXISTS employee (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {id_type},
         year TEXT,
         code TEXT,
         full_name TEXT,
@@ -61,37 +92,32 @@ def init_db():
 
         classification_core TEXT,
         classification_new TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
+
     conn.commit()
     conn.close()
 
 
-# --- Helper ---
-def safe_int(val):
-    """Ép kiểu về int trong khoảng 1–5"""
-    try:
-        i = int(val)
-        return max(min(i, 5), 1)
-    except (ValueError, TypeError):
-        return None
-
-
-# === ROUTES ===
+# =========================================================
+# 3️ Routes
+# =========================================================
 @app.route("/")
 def index():
     return render_template("form.html")
 
+
 @app.route("/employees")
 def employees():
-    conn = sqlite3.connect("employee.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row if isinstance(conn, sqlite3.Connection) else None
     c = conn.cursor()
     c.execute("SELECT * FROM employee ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
     return render_template("employees.html", rows=rows)
+
 
 @app.route("/submit", methods=["POST"])
 def submit():
@@ -122,16 +148,15 @@ def submit():
 
     data = {k: safe_int(f.get(k)) for k in all_fields}
 
-    # --- Bỏ qua Strategic/Talent/Teamwork nếu là Officer hoặc Senior ---
+    # Bỏ qua strategic/talent/teamwork nếu là Officer hoặc Senior
     if title in ["Officer", "Senior"]:
         skip_fields = [
             "strategic_thinking", "talent_management", "teamwork_leadership",
             "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"
         ]
         for k in skip_fields:
-            data[k] = None  # bỏ qua, không lưu
+            data[k] = None
 
-    # --- Phân loại điểm ---
     def classify(keys):
         vals = [data[k] for k in keys if data[k] is not None]
         if not vals:
@@ -143,7 +168,6 @@ def submit():
             return "High"
         return "Medium"
 
-    # Nếu là Officer/Senior thì loại 3 competency ra khỏi tính trung bình
     if title in ["Officer", "Senior"]:
         core_keys = [
             "communication", "continuous_learning", "critical_thinking",
@@ -156,13 +180,10 @@ def submit():
             "strategic_thinking", "talent_management", "teamwork_leadership"
         ]
 
-
-
     class_core = classify(core_keys)
     class_new = classify(["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"])
 
-    # --- Lưu DB ---
-    conn = sqlite3.connect("employee.db")
+    conn = get_connection()
     c = conn.cursor()
     c.execute('''
         INSERT INTO employee (
@@ -198,19 +219,15 @@ def upload_excel():
     if not file:
         return "No file uploaded", 400
 
-    # Đọc file Excel
     df = pd.read_excel(file)
     df.columns = [str(c).strip().lower() for c in df.columns]
-    print("Columns in Excel:", list(df.columns))
-
     df = df.fillna("")
 
-    conn = sqlite3.connect("employee.db")
+    conn = get_connection()
     c = conn.cursor()
 
     for _, row in df.iterrows():
         try:
-            # --- Helper: ép kiểu an toàn ---
             def safe_int(val):
                 try:
                     val = int(val)
@@ -218,7 +235,6 @@ def upload_excel():
                 except:
                     return None
 
-            # --- Core Competencies ---
             core = {
                 "communication": safe_int(row.get("communication")),
                 "continuous_learning": safe_int(row.get("continuous_learning")),
@@ -231,7 +247,6 @@ def upload_excel():
                 "teamwork_leadership": safe_int(row.get("teamwork_leadership")),
             }
 
-            # --- Core Competencies (req) ---
             core_req = {
                 "communication_req": safe_int(row.get("communication_req")),
                 "continuous_learning_req": safe_int(row.get("continuous_learning_req")),
@@ -244,7 +259,6 @@ def upload_excel():
                 "teamwork_leadership_req": safe_int(row.get("teamwork_leadership_req")),
             }
 
-            # --- New Competencies ---
             new = {
                 "creative_thinking": safe_int(row.get("creative_thinking")),
                 "resilience": safe_int(row.get("resilience")),
@@ -252,7 +266,6 @@ def upload_excel():
                 "analytical_thinking": safe_int(row.get("analytical_thinking")),
             }
 
-            # --- New Competencies (req) ---
             new_req = {
                 "creative_thinking_req": safe_int(row.get("creative_thinking_req")),
                 "resilience_req": safe_int(row.get("resilience_req")),
@@ -260,11 +273,9 @@ def upload_excel():
                 "analytical_thinking_req": safe_int(row.get("analytical_thinking_req")),
             }
 
-            # --- Tính phân loại ---
             def classify(scores_dict, title):
                 vals = []
                 for k, v in scores_dict.items():
-                    # Nếu là Officer hoặc Senior thì bỏ 3 competency này
                     if title in ["Officer", "Senior"] and k in [
                         "strategic_thinking", "talent_management", "teamwork_leadership"
                     ]:
@@ -283,7 +294,6 @@ def upload_excel():
             class_core = classify(core, row.get("title"))
             class_new = classify(new, row.get("title"))
 
-            # --- Insert vào DB ---
             c.execute('''
                 INSERT INTO employee (
                     year, code, full_name, title, department, division,
@@ -314,16 +324,18 @@ def upload_excel():
     print("Upload completed successfully.")
     return redirect(url_for("employees"))
 
-# --- Download Template ---
+
+# --- Download template ---
 @app.route("/download-template")
 def download_template():
     file_path = os.path.join(app.root_path, "static", "employee_template.xlsx")
     return send_file(file_path, as_attachment=True)
 
+
 # --- Export Excel ---
 @app.route("/export")
 def export_data():
-    conn = sqlite3.connect("employee.db")
+    conn = get_connection()
     df = pd.read_sql_query("SELECT * FROM employee ORDER BY id DESC", conn)
     conn.close()
 
@@ -340,15 +352,16 @@ def delete_selected():
         return redirect(url_for("employees"))
 
     try:
-        conn = sqlite3.connect("employee.db")
+        conn = get_connection()
         c = conn.cursor()
-        placeholders = ",".join("?" for _ in selected_ids)
-        c.execute(f"DELETE FROM employee WHERE id IN ({placeholders})", selected_ids)
+        placeholders = ",".join("?" if isinstance(conn, sqlite3.Connection) else "%s" for _ in selected_ids)
+        query = f"DELETE FROM employee WHERE id IN ({placeholders})"
+        c.execute(query, selected_ids)
         conn.commit()
         conn.close()
-        print(f"Deleted {len(selected_ids)} records.")
+        print(f"🗑 Deleted {len(selected_ids)} records.")
     except Exception as e:
-        print(" Delete error:", e)
+        print("Delete error:", e)
 
     return redirect(url_for("employees"))
 
@@ -356,85 +369,18 @@ def delete_selected():
 # --- API for Power BI ---
 @app.route("/api/employees")
 def api_employees():
-    conn = sqlite3.connect("employee.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM employee")
-    rows = c.fetchall()
+    columns = [desc[0] for desc in c.description]
+    data = [dict(zip(columns, row)) for row in c.fetchall()]
     conn.close()
-    return jsonify([dict(r) for r in rows])
+    return jsonify(data)
 
 
-# @app.route("/seed")
-# def seed():
-#     conn = sqlite3.connect("employee.db")
-#     c = conn.cursor()
-
-#     titles = ["Officer", "Senior", "Manager", "Deputy Manager"]
-#     departments = ["System Department", "Software Development", "IT Division", "Secretariat"]
-#     divisions = ["BOM1", "BOM2", "Product Department", "Finance Division"]
-
-#     # --- Helper ---
-#     def rand_score():
-#         return random.randint(1, 5)
-
-#     def classify(scores, title):
-#         vals = scores[:]
-#         if title in ["Officer", "Senior"]:
-#             vals = vals[:6]  # bỏ 3 competency
-#         pct = (sum(vals) / (len(vals) * 5)) * 100
-#         if pct < 70:
-#             return "Low"
-#         elif pct > 90:
-#             return "High"
-#         return "Medium"
-
-#     # --- Tạo 50 nhân viên ---
-#     for i in range(1, 10):
-#         title = random.choice(titles)
-#         department = random.choice(departments)
-#         division = random.choice(divisions)
-#         full_name = random.choice([
-#             "Nguyễn An", "Trần Vy", "Lê Minh", "Phạm Huy", "Hoàng Lan",
-#             "Võ Tâm", "Lý Quân", "Ngô Bình", "Đặng Mai", "Phan Long",
-#             "Bùi Dương", "Huỳnh Khoa", "Đỗ Vy", "Vũ Nam", "Trịnh Anh",
-#             "Trần Hà", "Lâm Hạnh", "Lê Hòa", "Nguyễn Tú", "Hoàng Bảo"
-#         ])
-
-#         core = [rand_score() for _ in range(9)]
-#         core_req = [rand_score() for _ in range(9)]
-#         new = [rand_score() for _ in range(4)]
-#         new_req = [rand_score() for _ in range(4)]
-
-#         class_core = classify(core, title)
-#         class_new = classify(new, title)
-
-#         c.execute('''
-#             INSERT INTO employee (
-#                 year, code, full_name, title, department, division,
-#                 communication, continuous_learning, critical_thinking,
-#                 data_analysis, digital_literacy, problem_solving,
-#                 strategic_thinking, talent_management, teamwork_leadership,
-#                 communication_req, continuous_learning_req, critical_thinking_req,
-#                 data_analysis_req, digital_literacy_req, problem_solving_req,
-#                 strategic_thinking_req, talent_management_req, teamwork_leadership_req,
-#                 creative_thinking, resilience, ai_bigdata, analytical_thinking,
-#                 creative_thinking_req, resilience_req, ai_bigdata_req, analytical_thinking_req,
-#                 classification_core, classification_new
-#             )
-#             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-#         ''', (
-#             2025, f"E{i:03}", full_name, title,
-#             department, division,
-#             *core, *core_req, *new, *new_req,
-#             class_core, class_new
-#         ))
-
-#     conn.commit()
-#     conn.close()
-#     return redirect(url_for("employees"))
-
-# --- MAIN ---
+# =========================================================
+# 4 Main
+# =========================================================
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)
