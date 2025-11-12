@@ -152,6 +152,7 @@ def submit():
     year, code, full_name = f.get("year"), f.get("code"), f.get("full_name")
     title, department, division = f.get("title"), f.get("department"), f.get("division")
 
+    # Convert safely to int 1–5
     def safe_int(v):
         try:
             return min(max(int(v), 1), 5)
@@ -170,32 +171,52 @@ def submit():
     ]
     data = {k: safe_int(f.get(k)) for k in all_fields}
 
+    # Nếu là Officer hoặc Senior → xóa 3 competency nâng cao
     if title in ["Officer", "Senior"]:
         for k in ["strategic_thinking", "talent_management", "teamwork_leadership",
                   "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]:
             data[k] = None
 
-    def classify(keys):
-        vals = [data[k] for k in keys if data[k] is not None]
-        if not vals:
+    # === Hàm phân loại theo tỷ lệ đạt / yêu cầu ===
+    def classify(score_keys, req_keys):
+        scores = [data[k] for k in score_keys if data[k] is not None]
+        reqs = [data[k] for k in req_keys if data[k] is not None]
+        if not scores or not reqs:
             return "N/A"
-        pct = (sum(vals) / (len(vals) * 5)) * 100
-        if pct < 70: return "Low"
-        elif pct > 90: return "High"
+        total_score = sum(scores)
+        total_req = sum(reqs)
+        if total_req == 0:
+            return "N/A"
+        pct = (total_score / total_req) * 100
+        if pct < 70:
+            return "Low"
+        elif pct > 90:
+            return "High"
         return "Medium"
 
+    # === Xác định nhóm core & new ===
     core_keys = ["communication", "continuous_learning", "critical_thinking",
-                 "data_analysis", "digital_literacy", "problem_solving"] + \
-                 ([] if title in ["Officer", "Senior"] else ["strategic_thinking", "talent_management", "teamwork_leadership"])
-    class_core = classify(core_keys)
-    class_new = classify(["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"])
+                 "data_analysis", "digital_literacy", "problem_solving"]
+    core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
+                     "data_analysis_req", "digital_literacy_req", "problem_solving_req"]
 
+    if title not in ["Officer", "Senior"]:
+        core_keys += ["strategic_thinking", "talent_management", "teamwork_leadership"]
+        core_req_keys += ["strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]
+
+    new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
+    new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
+
+    class_core = classify(core_keys, core_req_keys)
+    class_new = classify(new_keys, new_req_keys)
+
+    # === Insert database ===
     conn = get_connection()
     c = conn.cursor()
     table_name = "public.employee" if not isinstance(conn, sqlite3.Connection) else "employee"
     placeholders = get_placeholder(conn, 34)
 
-    # --- Check duplicated records in DB ---
+    # Check duplicate code
     query_check = f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = %s" \
         if not isinstance(conn, sqlite3.Connection) else \
         f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = ?"
@@ -204,7 +225,6 @@ def submit():
     if exists:
         conn.close()
         flash(f"Employee code '{code}' already exists. Please choose another code.", "danger")
-        # Retain inputted employee data 
         session["form_data"] = request.form.to_dict()
         return redirect(url_for("index"))
 
@@ -232,7 +252,9 @@ def submit():
     ))
     conn.commit()
     conn.close()
+    flash("Employee data submitted successfully!", "success")
     return redirect("/employees")
+
 
 @app.route("/upload", methods=["POST"])
 def upload_excel():
@@ -482,10 +504,16 @@ def extra_info():
     # Insert line by line valid_rows
     for row in valid_rows:
         # calculate classification before insert data
-        def classify(keys):
-            vals = [row.get(k) for k in keys if row.get(k) is not None]
-            if not vals: return "N/A"
-            pct = (sum(vals) / (len(vals) * 5)) * 100
+        def classify(score_keys, req_keys):
+            scores = [row.get(k) for k in score_keys if row.get(k) is not None]
+            reqs = [row.get(k) for k in req_keys if row.get(k) is not None]
+            if not scores or not reqs:
+                return "N/A"
+            total_score = sum(scores)
+            total_req = sum(reqs)
+            if total_req == 0:
+                return "N/A"
+            pct = (total_score / total_req) * 100
             if pct < 70: return "Low"
             elif pct > 90: return "High"
             return "Medium"
