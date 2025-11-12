@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Upload Validation Summary</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+  <style>
+    body { background-color: #f9fafb; }
+    .section-title { border-left: 4px solid #0d6efd; padding-left: 10px; font-weight: 600; }
+    .table-sm td, .table-sm th { padding: 0.4rem !important; }
+    .card { border-radius: 10px; }
+  </style>
+</head>
+
+<body class="py-4">
+<div class="container">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-file-earmark-check"></i> Upload Validation Summary</h3>
+    <a href="/employees" class="btn btn-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back to Employees
+    </a>
+  </div>
+
+  {% if summary %}
+  <!-- Summary -->
+  <div class="alert alert-info">
+    File: <b>{{ summary.filename }}</b> validated at <b>{{ summary.time }}</b>.<br>
+    <b>{{ summary.success }}</b> valid records |
+    <b>{{ summary.skipped_count }}</b> invalid records.
+  </div>
+
+  <!-- VALID RECORDS -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h5 class="section-title mb-3"><i class="bi bi-table"></i> Valid Records (Ready to Save)</h5>
+
+      {% if summary.preview and summary.preview|length > 0 %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped table-sm">
+          <thead class="table-light">
+            <tr>
+              {% for key in summary.preview[0].keys() %}
+                <th>{{ key|replace("_", " ")|title }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in summary.preview %}
+            <tr>
+              {% for val in r.values() %}
+                <td>{{ val }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted">No valid records found.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- SKIPPED RECORDS -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title"><i class="bi bi-exclamation-triangle"></i> Skipped Records (Invalid Data)</h5>
+        {% if summary.skipped_count > 0 %}
+        <a href="/download-skipped" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-download"></i> Download Errors (Fix & Re-upload)
+        </a>
+        {% endif %}
+      </div>
+
+      {% if summary.skipped_details and summary.skipped_details|length > 0 %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped table-sm">
+          <thead class="table-danger">
+            <tr>
+              <th>Row</th>
+              <th>Code</th>
+              <th>Full Name</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in summary.skipped_details %}
+            <tr>
+              <td>{{ item.row }}</td>
+              <td>{{ item.code or '-' }}</td>
+              <td>{{ item.full_name or '-' }}</td>
+              <td>{{ item.reason }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted"> No invalid records detected.</p>
+      {% endif %}
+
+      {% if summary.skipped_count > 0 %}
+      <p class="text-muted small mt-2">
+        Tip: Download the error file, fix directly, then upload it again using the Excel import form.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ADDITIONAL INFO + SAVE -->
+  <div class="card shadow-sm mb-5">
+    <div class="card-body">
+      <h5 class="section-title mb-3"><i class="bi bi-person-lines-fill"></i> Additional Information</h5>
+
+      <form action="/extra-info" method="POST">
+        <div class="mb-3">
+          <label class="form-label">Person in charge</label>
+          <input type="text" name="handler" class="form-control" placeholder="Enter responsible person..." required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Upload Note</label>
+          <textarea name="note" class="form-control" rows="3" placeholder="Any remarks about this upload..."></textarea>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="confirm" required>
+          <label class="form-check-label">I confirm that all valid data has been reviewed and is ready to be saved.</label>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-save"></i> Save and Continue
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <footer class="text-center text-muted small mt-4">
+    © 2025 Employee Competency System
+  </footer>
+</div>
+
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Employee Detail</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+</head>
+
+<body class="p-4 bg-light">
+<div class="container">
+
+  <div class="mb-3 d-flex justify-content-between align-items-center">
+    <h3 class="mb-0">
+      <i class="bi bi-person-badge"></i>
+      Employee Detail
+    </h3>
+    <a href="/employees" class="btn btn-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <!-- BASIC INFO -->
+      <h5 class="mb-3">Basic Information</h5>
+      <div class="row mb-2">
+        <div class="col-md-3"><strong>ID:</strong> {{ employee.id }}</div>
+        <div class="col-md-3"><strong>Year:</strong> {{ employee.year }}</div>
+        <div class="col-md-3"><strong>Code:</strong> {{ employee.code }}</div>
+        <div class="col-md-3"><strong>Created At:</strong> {{ employee.created_at }}</div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Full Name:</strong> {{ employee.full_name }}</div>
+        <div class="col-md-4"><strong>Title:</strong> {{ employee.title }}</div>
+        <div class="col-md-4"><strong>Division:</strong> {{ employee.division }}</div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-12"><strong>Department:</strong> {{ employee.department }}</div>
+      </div>
+
+      <hr>
+
+      <!-- CLASSIFICATION -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <strong>Classification (Core):</strong>
+          <span class="badge
+            {% if employee.classification_core == 'High' %}bg-success
+            {% elif employee.classification_core == 'Low' %}bg-danger
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ employee.classification_core }}
+          </span>
+        </div>
+        <div class="col-md-6">
+          <strong>Classification (New):</strong>
+          <span class="badge
+            {% if employee.classification_new == 'High' %}bg-success
+            {% elif employee.classification_new == 'Low' %}bg-danger
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ employee.classification_new }}
+          </span>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- CORE COMPETENCIES -->
+      <h5 class="mb-2">Core Competencies</h5>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Competency</th>
+              <th>Actual</th>
+              <th>Required</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Communication</td>
+              <td>{{ employee.communication }}</td>
+              <td>{{ employee.communication_req }}</td>
+            </tr>
+            <tr>
+              <td>Continuous Learning</td>
+              <td>{{ employee.continuous_learning }}</td>
+              <td>{{ employee.continuous_learning_req }}</td>
+            </tr>
+            <tr>
+              <td>Critical Thinking</td>
+              <td>{{ employee.critical_thinking }}</td>
+              <td>{{ employee.critical_thinking_req }}</td>
+            </tr>
+            <tr>
+              <td>Data Analysis</td>
+              <td>{{ employee.data_analysis }}</td>
+              <td>{{ employee.data_analysis_req }}</td>
+            </tr>
+            <tr>
+              <td>Digital Literacy</td>
+              <td>{{ employee.digital_literacy }}</td>
+              <td>{{ employee.digital_literacy_req }}</td>
+            </tr>
+            <tr>
+              <td>Problem Solving</td>
+              <td>{{ employee.problem_solving }}</td>
+              <td>{{ employee.problem_solving_req }}</td>
+            </tr>
+            <tr>
+              <td>Strategic Thinking</td>
+              <td>{{ employee.strategic_thinking }}</td>
+              <td>{{ employee.strategic_thinking_req }}</td>
+            </tr>
+            <tr>
+              <td>Talent Management</td>
+              <td>{{ employee.talent_management }}</td>
+              <td>{{ employee.talent_management_req }}</td>
+            </tr>
+            <tr>
+              <td>Teamwork &amp; Leadership</td>
+              <td>{{ employee.teamwork_leadership }}</td>
+              <td>{{ employee.teamwork_leadership_req }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- NEW COMPETENCIES -->
+      <h5 class="mb-2">New Competencies</h5>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Competency</th>
+              <th>Actual</th>
+              <th>Required</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Creative Thinking</td>
+              <td>{{ employee.creative_thinking }}</td>
+              <td>{{ employee.creative_thinking_req }}</td>
+            </tr>
+            <tr>
+              <td>Resilience</td>
+              <td>{{ employee.resilience }}</td>
+              <td>{{ employee.resilience_req }}</td>
+            </tr>
+            <tr>
+              <td>AI &amp; Big Data</td>
+              <td>{{ employee.ai_bigdata }}</td>
+              <td>{{ employee.ai_bigdata_req }}</td>
+            </tr>
+            <tr>
+              <td>Analytical Thinking</td>
+              <td>{{ employee.analytical_thinking }}</td>
+              <td>{{ employee.analytical_thinking_req }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-3">
+        <a href="/employees" class="btn btn-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

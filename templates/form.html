@@ -12,8 +12,20 @@
 
 <body class="py-4">
   <div class="container">
-
-    <!-- 🔹 HEADER / ACTION BAR -->
+  <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mt-3">
+          {% for category, msg in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ msg|safe }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <!-- Header / Action Bar -->
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0"><i class="bi bi-person-lines-fill"></i> Employee Competency Form</h3>
 
@@ -22,6 +34,7 @@
           <i class="bi bi-file-earmark-excel"></i> Download Template
         </a>
 
+        <!-- Upload Excel -->
         <form action="/upload" method="POST" enctype="multipart/form-data" style="display:inline;">
           <label class="btn btn-primary btn-sm mb-0">
             <i class="bi bi-upload"></i> Upload Excel
@@ -29,38 +42,40 @@
           </label>
         </form>
 
-        <a href="/employees" class="btn btn-secondary btn-sm">
+        <a href="/employees" onclick="saveFormData()" class="btn btn-secondary btn-sm">
           <i class="bi bi-people"></i> View Employee List
         </a>
       </div>
     </div>
 
-    <!-- 🔹 FORM CARD -->
-    <div class="form-card">
+    <!-- Form -->
+    <div class="card p-4 shadow-sm">
       <form action="/submit" method="post" id="employeeForm" onsubmit="return validateForm();">
 
-        <h5 class="section-header">Basic Information</h5>
+        <h5 class="section-header mb-3">Basic Information</h5>
         <div class="row mb-3">
           <div class="col-md-2">
             <label class="form-label">Year</label>
-            <input type="text" name="year" class="form-control" required>
+            <input type="text" name="year" class="form-control" required
+                   value="{{ form_data.year if form_data else '' }}">
           </div>
           <div class="col-md-2">
             <label class="form-label">Code</label>
-            <input type="text" name="code" class="form-control" required>
+            <input type="text" name="code" class="form-control" required
+                   value="{{ form_data.code if form_data else '' }}">
           </div>
           <div class="col-md-4">
             <label class="form-label">Full Name</label>
-            <input type="text" name="full_name" class="form-control" required>
+            <input type="text" name="full_name" class="form-control" required
+                   value="{{ form_data.full_name if form_data else '' }}">
           </div>
           <div class="col-md-4">
             <label class="form-label">Title</label>
             <select name="title" class="form-select" id="titleSelect" required>
               <option value="">-- Select Title --</option>
-              <option>Officer</option><option>Senior</option>
-              <option>Supervisor</option><option>Deputy Manager</option>
-              <option>Manager</option><option>Deputy Director</option>
-              <option>Director</option>
+              {% for t in ["Officer","Senior","Supervisor","Deputy Manager","Manager","Deputy Director","Director"] %}
+                <option value="{{t}}" {% if form_data and form_data.title == t %}selected{% endif %}>{{t}}</option>
+              {% endfor %}
             </select>
           </div>
         </div>
@@ -68,103 +83,84 @@
         <div class="row mb-3">
           <div class="col-md-6">
             <label class="form-label">Division</label>
-              <select name="division" class="form-select" required>
-                <option value="">-- Select Division --</option>
-                <option>BOM 1</option>
-                <option>BOM 2</option>
-                <option>Company Secretariat</option>
-                <option>Product Department</option>
-                <option>Marketing Division</option>
-                <option>Customer Care Center</option>
-                <option>Finance Division</option>
-                <option>Accounting Division</option>
-                <option>Risk Management Division</option>
-                <option>Securities Service Division</option>
-                <option>Internal control Division</option>
-                <option>Dealing Division</option>
-                <option>Advisory Division</option>
-                <option>Research Division</option>
-                <option>Legal Affairs Division</option>
-                <option>IT Division</option>
-                <option>Human Resources Division</option>
-                <option>General Affairs Division</option>
-                <option>Brokerage Division</option>
-                <option>Covered Warrant Division</option>
-              </select>
+            <select name="division" class="form-select" required>
+              <option value="">-- Select Division --</option>
+              {% for d in [
+                "BOM 1","BOM 2","Company Secretariat","Product Department",
+                "Marketing Division","Customer Care Center","Finance Division",
+                "Accounting Division","Risk Management Division","Securities Service Division",
+                "Internal Control Division","Dealing Division","Advisory Division","Research Division",
+                "Legal Affairs Division","IT Division","Human Resources Division","General Affairs Division",
+                "Brokerage Division","Covered Warrant Division"
+              ] %}
+                <option value="{{d}}" {% if form_data and form_data.division == d %}selected{% endif %}>{{d}}</option>
+              {% endfor %}
+            </select>
           </div>
+
           <div class="col-md-6">
             <label class="form-label">Department</label>
-              <select name="department" class="form-select" required>
-                <option value="">-- Select Department --</option>
-                <option value="No department">No department</option>
-                <option>Brokerage Management Department</option>
-                <option>Secretariat</option>
-                <option>Account Management Department</option>
-                <option>Institutional Business Department</option>
-                <option>Network Management Department</option>
-                <option>Software Department</option>
-                <option>System Department</option>
-                <option>Talent Acquisition Department</option>
-                <option>Total Rewards Department</option>
-                <option>Learning & Development Department</option>
-                <option>Employee Engagement & Employer Branding Department</option>
-                <option>Settlement & Margin Department</option>
-                <option>Depository Trading Department</option>
-                <option>Business Support Department</option>
-              </select>
-          </div>
-        </div>
-
-        <div class="row mb-4">
-          <div class="col-md-3">
-            <label class="form-label">Created Date (dd/mm/yyyy)</label>
-            <input type="text" name="created_at" class="form-control" placeholder="e.g. 29/10/2025" required>
+            <select name="department" class="form-select" required>
+              <option value="">-- Select Department --</option>
+              {% for dep in [
+                "No department","Brokerage Management Department","Secretariat",
+                "Account Management Department","Institutional Business Department",
+                "Network Management Department","Software Department","System Department",
+                "Talent Acquisition Department","Total Rewards Department",
+                "Learning & Development Department","Employee Engagement & Employer Branding Department",
+                "Settlement & Margin Department","Depository Trading Department","Business Support Department"
+              ] %}
+                <option value="{{dep}}" {% if form_data and form_data.department == dep %}selected{% endif %}>{{dep}}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
 
         <!-- === Core Competencies === -->
-        <h5 class="section-header">Core Competencies (1–5)</h5>
+        <h5 class="section-header mt-4 mb-3">Core Competencies (1–5)</h5>
         <div class="row g-3">
-          <div class="col-md-4"><label>Communication</label><input type="number" name="communication" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Continuous Learning</label><input type="number" name="continuous_learning" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Critical Thinking</label><input type="number" name="critical_thinking" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Data Analysis</label><input type="number" name="data_analysis" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Digital Literacy</label><input type="number" name="digital_literacy" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Problem Solving</label><input type="number" name="problem_solving" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4 strategic-field"><label>Strategic Thinking</label><input type="number" name="strategic_thinking" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4 strategic-field"><label>Talent Management</label><input type="number" name="talent_management" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4 strategic-field"><label>Teamwork & Leadership</label><input type="number" name="teamwork_leadership" class="form-control" min="1" max="5"></div>
+          {% for f in ["communication","continuous_learning","critical_thinking","data_analysis","digital_literacy","problem_solving","strategic_thinking","talent_management","teamwork_leadership"] %}
+          <div class="col-md-4 {% if 'strategic' in f or 'talent' in f or 'teamwork' in f %}strategic-field{% endif %}">
+            <label>{{ f.replace("_"," ")|title }}</label>
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5"
+                   value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
+          </div>
+          {% endfor %}
         </div>
 
-        <!-- === Core Required === -->
-        <h5 class="section-header">Core Competencies (Required)</h5>
+        <!-- === Required Core Competencies === -->
+        <h5 class="section-header mt-4 mb-3">Core Competencies (Required)</h5>
         <div class="row g-3">
-          <div class="col-md-4"><label>Comm (req)</label><input type="number" name="communication_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Cont. Learn (req)</label><input type="number" name="continuous_learning_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Crit. Think (req)</label><input type="number" name="critical_thinking_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Data Analysis (req)</label><input type="number" name="data_analysis_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Digital Lit (req)</label><input type="number" name="digital_literacy_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Prob. Solving (req)</label><input type="number" name="problem_solving_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4 strategic-field"><label>Strategic Think (req)</label><input type="number" name="strategic_thinking_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4 strategic-field"><label>Talent Mgmt (req)</label><input type="number" name="talent_management_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4 strategic-field"><label>Teamwork & Lead (req)</label><input type="number" name="teamwork_leadership_req" class="form-control" min="1" max="5"></div>
+          {% for f in ["communication_req","continuous_learning_req","critical_thinking_req","data_analysis_req","digital_literacy_req","problem_solving_req","strategic_thinking_req","talent_management_req","teamwork_leadership_req"] %}
+          <div class="col-md-4 {% if 'strategic' in f or 'talent' in f or 'teamwork' in f %}strategic-field{% endif %}">
+            <label>{{ f.replace("_req"," Requirement").replace("_"," ")|title }}</label>
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5"
+                   value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
+          </div>
+          {% endfor %}
         </div>
 
         <!-- === New Competencies === -->
-        <h5 class="section-header">New Competencies (1–5)</h5>
+        <h5 class="section-header mt-4 mb-3">New Competencies (1–5)</h5>
         <div class="row g-3">
-          <div class="col-md-4"><label>Creative Thinking</label><input type="number" name="creative_thinking" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Resilience</label><input type="number" name="resilience" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>AI & Big Data</label><input type="number" name="ai_bigdata" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Analytical Thinking</label><input type="number" name="analytical_thinking" class="form-control" min="1" max="5"></div>
+          {% for f in ["creative_thinking","resilience","ai_bigdata","analytical_thinking"] %}
+          <div class="col-md-4">
+            <label>{{ f.replace("_"," ")|title }}</label>
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5"
+                   value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
+          </div>
+          {% endfor %}
         </div>
 
-        <h5 class="section-header">New Competencies (Required)</h5>
+        <h5 class="section-header mt-4 mb-3">New Competencies (Required)</h5>
         <div class="row g-3 mb-3">
-          <div class="col-md-4"><label>Creative Think (req)</label><input type="number" name="creative_thinking_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Resilience (req)</label><input type="number" name="resilience_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>AI & Big Data (req)</label><input type="number" name="ai_bigdata_req" class="form-control" min="1" max="5"></div>
-          <div class="col-md-4"><label>Analytical Think (req)</label><input type="number" name="analytical_thinking_req" class="form-control" min="1" max="5"></div>
+          {% for f in ["creative_thinking_req","resilience_req","ai_bigdata_req","analytical_thinking_req"] %}
+          <div class="col-md-4">
+            <label>{{ f.replace("_req"," Requirement").replace("_"," ")|title }}</label>
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5"
+                   value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
+          </div>
+          {% endfor %}
         </div>
 
         <button type="submit" class="btn btn-primary w-100 mt-3">
@@ -173,10 +169,10 @@
       </form>
     </div>
 
-    <footer>© 2025 Employee Competency System</footer>
+    <footer class="mt-4 text-center text-muted small">© 2025 Employee Competency System</footer>
   </div>
 
-  <!-- === JS === -->
+  <!-- === Scripts === -->
   <script>
     const titleSelect = document.getElementById("titleSelect");
     const strategicFields = document.querySelectorAll(".strategic-field input");
@@ -218,6 +214,20 @@
       }
       return true;
     }
+
+    // Giữ dữ liệu khi user bấm View Employee List
+    function saveFormData() {
+      const form = document.getElementById("employeeForm");
+      const data = new FormData(form);
+      fetch("/save-form", { method: "POST", body: data });
+    }
+
+    // Tự ẩn alert sau 5s
+    setTimeout(() => {
+      document.querySelectorAll('.alert').forEach(a => new bootstrap.Alert(a).close());
+    }, 5000);
   </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
