@@ -520,11 +520,17 @@ def extra_info():
 
         core_keys = ["communication", "continuous_learning", "critical_thinking",
                      "data_analysis", "digital_literacy", "problem_solving"]
+        core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
+                         "data_analysis_req", "digital_literacy_req", "problem_solving_req"]
         if row["title"] not in ["Officer", "Senior"]:
             core_keys += ["strategic_thinking", "talent_management", "teamwork_leadership"]
+            core_req_keys += ["strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]
 
-        class_core = classify(core_keys)
-        class_new = classify(["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"])
+        new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
+        new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
+
+        class_core = classify(core_keys, core_req_keys)
+        class_new = classify(new_keys, new_req_keys)
 
         all_fields = [
             "communication", "continuous_learning", "critical_thinking", "data_analysis",
