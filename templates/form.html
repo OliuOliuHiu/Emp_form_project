@@ -86,7 +86,7 @@
             <select name="division" class="form-select" required>
               <option value="">-- Select Division --</option>
               {% for d in [
-                "BOM 1","BOM 2","Company Secretariat","Product Department",
+                "BOM 1","BOM 2","Company Secretariat","Finance and Advisory Division","Product Department",
                 "Marketing Division","Customer Care Center","Finance Division",
                 "Accounting Division","Risk Management Division","Securities Service Division",
                 "Internal Control Division","Dealing Division","Advisory Division","Research Division",
@@ -117,7 +117,7 @@
         </div>
 
         <!-- === Core Competencies === -->
-        <h5 class="section-header mt-4 mb-3">Core Competencies (1–5)</h5>
+        <h5 class="section-header mt-4 mb-3">Core Competencies (Actual)</h5>
         <div class="row g-3">
           {% for f in ["communication","continuous_learning","critical_thinking","data_analysis","digital_literacy","problem_solving","strategic_thinking","talent_management","teamwork_leadership"] %}
           <div class="col-md-4 {% if 'strategic' in f or 'talent' in f or 'teamwork' in f %}strategic-field{% endif %}">
@@ -141,7 +141,7 @@
         </div>
 
         <!-- === New Competencies === -->
-        <h5 class="section-header mt-4 mb-3">New Competencies (1–5)</h5>
+        <h5 class="section-header mt-4 mb-3">New Competencies (Actual)</h5>
         <div class="row g-3">
           {% for f in ["creative_thinking","resilience","ai_bigdata","analytical_thinking"] %}
           <div class="col-md-4">
