@@ -24,15 +24,12 @@ def get_connection():
 
     db_url = os.getenv("DATABASE_URL", "sqlite:///employee.db")
 
-    # Nếu dùng PostgreSQL (Render / Railway / etc.)
     if db_url.startswith("postgresql://"):
         print("Connecting to PostgreSQL (host)...")
-        # Một số host như Render yêu cầu SSL
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
-        # Bổ sung sslmode=require nếu URL chưa có
         if "sslmode" not in db_url:
             db_url += "?sslmode=require"
 
@@ -43,10 +40,10 @@ def get_connection():
         db_path = db_url.replace("sqlite:///", "")
         conn = sqlite3.connect(
             db_path,
-            timeout=10,              # nếu đang ghi, chờ tối đa 10s
-            check_same_thread=False  # cho phép Flask đa luồng
+            timeout=10,              
+            check_same_thread=False  
         )
-        conn.execute("PRAGMA busy_timeout = 5000")  # thêm 5s chờ nếu bị lock
+        conn.execute("PRAGMA busy_timeout = 5000")  
 
     return conn
 
@@ -171,13 +168,11 @@ def submit():
     ]
     data = {k: safe_int(f.get(k)) for k in all_fields}
 
-    # Nếu là Officer hoặc Senior → xóa 3 competency nâng cao
     if title in ["Officer", "Senior"]:
         for k in ["strategic_thinking", "talent_management", "teamwork_leadership",
                   "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]:
             data[k] = None
 
-    # === Hàm phân loại theo tỷ lệ đạt / yêu cầu ===
     def classify(score_keys, req_keys):
         scores = [data[k] for k in score_keys if data[k] is not None]
         reqs = [data[k] for k in req_keys if data[k] is not None]
@@ -194,7 +189,6 @@ def submit():
             return "High"
         return "Medium"
 
-    # === Xác định nhóm core & new ===
     core_keys = ["communication", "continuous_learning", "critical_thinking",
                  "data_analysis", "digital_literacy", "problem_solving"]
     core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
@@ -216,15 +210,15 @@ def submit():
     table_name = "public.employee" if not isinstance(conn, sqlite3.Connection) else "employee"
     placeholders = get_placeholder(conn, 34)
 
-    # Check duplicate code
-    query_check = f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = %s" \
+    # Check duplicate code with same year
+    query_check = f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = %s AND year = %s" \
         if not isinstance(conn, sqlite3.Connection) else \
-        f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = ?"
-    c.execute(query_check, (code.lower(),))
+        f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = ? AND year = ?"
+    c.execute(query_check, (code.lower(), year))
     exists = c.fetchone()[0]
     if exists:
         conn.close()
-        flash(f"Employee code '{code}' already exists. Please choose another code.", "danger")
+        flash(f"Employee code '{code}' already exists for year '{year}'. Please choose another code or year.", "danger")
         session["form_data"] = request.form.to_dict()
         return redirect(url_for("index"))
 
@@ -287,9 +281,18 @@ def upload_excel():
     c = conn.cursor()
     table = "public.employee" if not isinstance(conn, sqlite3.Connection) else "employee"
 
-    # Select Employee Code list have storaged in DB
-    c.execute(f"SELECT LOWER(code) FROM {table}")
-    existing_codes = set(row[0] for row in c.fetchall())
+    # Select Employee Code and Year list have storaged in DB
+    c.execute(f"SELECT LOWER(code), year FROM {table}")
+    existing_code_year = set((row[0], str(row[1])) for row in c.fetchall())
+
+    # Create a temporary column to check duplicates in Excel file (code + year combination)
+    df["_code_year"] = df.apply(
+        lambda r: (str(r["code"]).strip().lower() if pd.notna(r["code"]) else "", 
+                  str(r["year"]).strip() if pd.notna(r["year"]) else ""), 
+        axis=1
+    )
+    # Count occurrences of each (code, year) combination
+    code_year_counts = df["_code_year"].value_counts()
 
     success = 0
     skipped_details = []
@@ -308,13 +311,16 @@ def upload_excel():
         if not full_name:
             errors.append("Missing full name")
 
-        # Check code duplicated in Excel file
-        if df["code"].duplicated(keep=False)[idx]:
-            errors.append(f"Duplicate code {code} in file")
+        year = str(row.get("year")).strip() if pd.notna(row.get("year")) else ""
+        
+        # Check code duplicated in Excel file (same code and year)
+        current_code_year = (code.lower(), year)
+        if code_year_counts.get(current_code_year, 0) > 1:
+            errors.append(f"Duplicate code {code} with year {year} in file")
 
-        # Check code duplicated in Database
-        if code.lower() in existing_codes:
-            errors.append(f"Employee code {code} already exists in database")
+        # Check code duplicated in Database (same code and year)
+        if (code.lower(), year) in existing_code_year:
+            errors.append(f"Employee code {code} with year {year} already exists in database")
 
         data = {k: safe_int(row.get(k)) for k in df.columns if k not in required_cols}
 
@@ -357,6 +363,8 @@ def upload_excel():
         })
         success += 1
 
+    # Clean up temporary column
+    df.drop("_code_year", axis=1, inplace=True, errors="ignore")
     conn.close()
 
     if rows_with_errors:
