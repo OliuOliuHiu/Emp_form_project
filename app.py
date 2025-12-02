@@ -72,35 +72,35 @@ def init_db():
         department TEXT,
         division TEXT,
 
-        communication INTEGER,
-        continuous_learning INTEGER,
-        critical_thinking INTEGER,
-        data_analysis INTEGER,
-        digital_literacy INTEGER,
-        problem_solving INTEGER,
-        strategic_thinking INTEGER,
-        talent_management INTEGER,
-        teamwork_leadership INTEGER,
+        communication REAL,
+        continuous_learning REAL,
+        critical_thinking REAL,
+        data_analysis REAL,
+        digital_literacy REAL,
+        problem_solving REAL,
+        strategic_thinking REAL,
+        talent_management REAL,
+        teamwork_leadership REAL,
 
-        communication_req INTEGER,
-        continuous_learning_req INTEGER,
-        critical_thinking_req INTEGER,
-        data_analysis_req INTEGER,
-        digital_literacy_req INTEGER,
-        problem_solving_req INTEGER,
-        strategic_thinking_req INTEGER,
-        talent_management_req INTEGER,
-        teamwork_leadership_req INTEGER,
+        communication_req REAL,
+        continuous_learning_req REAL,
+        critical_thinking_req REAL,
+        data_analysis_req REAL,
+        digital_literacy_req REAL,
+        problem_solving_req REAL,
+        strategic_thinking_req REAL,
+        talent_management_req REAL,
+        teamwork_leadership_req REAL,
 
-        creative_thinking INTEGER,
-        resilience INTEGER,
-        ai_bigdata INTEGER,
-        analytical_thinking INTEGER,
+        creative_thinking REAL,
+        resilience REAL,
+        ai_bigdata REAL,
+        analytical_thinking REAL,
 
-        creative_thinking_req INTEGER,
-        resilience_req INTEGER,
-        ai_bigdata_req INTEGER,
-        analytical_thinking_req INTEGER,
+        creative_thinking_req REAL,
+        resilience_req REAL,
+        ai_bigdata_req REAL,
+        analytical_thinking_req REAL,
 
         classification_core TEXT,
         classification_new TEXT,
@@ -149,10 +149,13 @@ def submit():
     year, code, full_name = f.get("year"), f.get("code"), f.get("full_name")
     title, department, division = f.get("title"), f.get("department"), f.get("division")
 
-    # Convert safely to int 1–5
-    def safe_int(v):
+    # Convert safely to float 1.0–5.0
+    def safe_float(v):
         try:
-            return min(max(int(v), 1), 5)
+            val = float(v)
+            if val < 1.0 or val > 5.0:
+                return None
+            return val
         except:
             return None
 
@@ -166,7 +169,7 @@ def submit():
         "creative_thinking", "resilience", "ai_bigdata", "analytical_thinking",
         "creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"
     ]
-    data = {k: safe_int(f.get(k)) for k in all_fields}
+    data = {k: safe_float(f.get(k)) for k in all_fields}
 
     if title in ["Officer", "Senior"]:
         for k in ["strategic_thinking", "talent_management", "teamwork_leadership",
@@ -271,9 +274,12 @@ def upload_excel():
         flash(f"Missing required columns: {', '.join(missing_cols)}", "danger")
         return redirect(url_for("employees"))
 
-    def safe_int(v):
+    def safe_float(v):
         try:
-            return min(max(int(v), 1), 5)
+            val = float(v)
+            if val < 1.0 or val > 5.0:
+                return None
+            return val
         except:
             return None
 
@@ -322,7 +328,11 @@ def upload_excel():
         if (code.lower(), year) in existing_code_year:
             errors.append(f"Employee code {code} with year {year} already exists in database")
 
-        data = {k: safe_int(row.get(k)) for k in df.columns if k not in required_cols}
+        data = {
+            k: safe_float(row.get(k))
+            for k in df.columns
+            if k not in required_cols and not str(k).startswith("_")
+        }
 
         # Validate forbid inputing competency premium for Officer/Senior
         if title in ["Officer", "Senior"]:
@@ -335,9 +345,9 @@ def upload_excel():
                 if pd.notna(val) and str(val).strip() != "":
                     errors.append(f"{title} not allowed to fill {f}")
 
-        # Check range 1–5
+        # Check range 1.0–5.0
         for key, val in data.items():
-            if val is not None and (val < 1 or val > 5):
+            if val is not None and (val < 1.0 or val > 5.0):
                 errors.append(f"Invalid value {val} for {key}")
 
         # Error --> Skip record
