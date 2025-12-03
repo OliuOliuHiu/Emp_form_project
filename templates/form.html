@@ -122,7 +122,7 @@
           {% for f in ["communication","continuous_learning","critical_thinking","data_analysis","digital_literacy","problem_solving","strategic_thinking","talent_management","teamwork_leadership"] %}
           <div class="col-md-4 {% if 'strategic' in f or 'talent' in f or 'teamwork' in f %}strategic-field{% endif %}">
             <label>{{ f.replace("_"," ")|title }}</label>
-            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="0.1"
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="any"
                    value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
           </div>
           {% endfor %}
@@ -134,7 +134,7 @@
           {% for f in ["communication_req","continuous_learning_req","critical_thinking_req","data_analysis_req","digital_literacy_req","problem_solving_req","strategic_thinking_req","talent_management_req","teamwork_leadership_req"] %}
           <div class="col-md-4 {% if 'strategic' in f or 'talent' in f or 'teamwork' in f %}strategic-field{% endif %}">
             <label>{{ f.replace("_req"," Requirement").replace("_"," ")|title }}</label>
-            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="0.1"
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="any"
                    value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
           </div>
           {% endfor %}
@@ -146,7 +146,7 @@
           {% for f in ["creative_thinking","resilience","ai_bigdata","analytical_thinking"] %}
           <div class="col-md-4">
             <label>{{ f.replace("_"," ")|title }}</label>
-            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="0.1"
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="any"
                    value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
           </div>
           {% endfor %}
@@ -157,7 +157,7 @@
           {% for f in ["creative_thinking_req","resilience_req","ai_bigdata_req","analytical_thinking_req"] %}
           <div class="col-md-4">
             <label>{{ f.replace("_req"," Requirement").replace("_"," ")|title }}</label>
-            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="0.1"
+            <input type="number" name="{{f}}" class="form-control" min="1" max="5" step="any"
                    value="{{ form_data[f] if form_data and form_data.get(f) else '' }}">
           </div>
           {% endfor %}
@@ -176,6 +176,14 @@
   <script>
     const titleSelect = document.getElementById("titleSelect");
     const strategicFields = document.querySelectorAll(".strategic-field input");
+    const coreFields = [
+      "communication","continuous_learning","critical_thinking",
+      "data_analysis","digital_literacy","problem_solving",
+      "strategic_thinking","talent_management","teamwork_leadership",
+      "communication_req","continuous_learning_req","critical_thinking_req",
+      "data_analysis_req","digital_literacy_req","problem_solving_req",
+      "strategic_thinking_req","talent_management_req","teamwork_leadership_req"
+    ];
 
     function toggleStrategicFields() {
       const val = titleSelect.value;
@@ -205,8 +213,20 @@
       const inputs = form.querySelectorAll("input[type=number]");
       for (const input of inputs) {
         if (input.hasAttribute("readonly")) continue;
-        if (input.value.trim() === "") continue; // Allow empty fields
-        const v = parseFloat(input.value);
+        const name = input.name;
+        const raw = input.value.trim();
+
+        // Core competencies must NOT be empty
+        if (coreFields.includes(name) && raw === "") {
+          alert("Core competencies (actual & required) must not be empty and must be between 1.0–5.0.");
+          input.focus();
+          return false;
+        }
+
+        // New competencies are allowed to be empty
+        if (raw === "") continue;
+
+        const v = parseFloat(raw);
         if (isNaN(v) || v < 1.0 || v > 5.0) {
           alert("Competency scores must be between 1.0–5.0.");
           input.focus();

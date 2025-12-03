@@ -204,6 +204,19 @@ def submit():
     new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
     new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
 
+    # Validate: Core competencies (actual + required) must NOT be null
+    # except strategic_thinking / talent_management / teamwork_leadership for Officer/Senior
+    required_core_fields = core_keys + core_req_keys
+    missing_core = [k for k in required_core_fields if data.get(k) is None]
+    if missing_core:
+        flash(
+            "Core competencies (actual & required) must not be empty. "
+            "Please fill all core competency fields between 1.0 and 5.0.",
+            "danger",
+        )
+        session["form_data"] = request.form.to_dict()
+        return redirect(url_for("index"))
+
     class_core = classify(core_keys, core_req_keys)
     class_new = classify(new_keys, new_req_keys)
 
@@ -328,24 +341,58 @@ def upload_excel():
         if (code.lower(), year) in existing_code_year:
             errors.append(f"Employee code {code} with year {year} already exists in database")
 
-        data = {
-            k: safe_float(row.get(k))
-            for k in df.columns
-            if k not in required_cols and not str(k).startswith("_")
-        }
+        # Process competency fields - handle NaN/empty values properly
+        data = {}
+        for k in df.columns:
+            if k not in required_cols and not str(k).startswith("_"):
+                val = row.get(k)
+                # Check if value is NaN or empty string
+                if pd.isna(val) or (isinstance(val, str) and val.strip() == ""):
+                    data[k] = None
+                else:
+                    data[k] = safe_float(val)
 
+        # Core vs New competency lists
+        core_fields = [
+            "communication", "continuous_learning", "critical_thinking",
+            "data_analysis", "digital_literacy", "problem_solving"
+        ]
+        core_req_fields = [
+            "communication_req", "continuous_learning_req", "critical_thinking_req",
+            "data_analysis_req", "digital_literacy_req", "problem_solving_req"
+        ]
+        
+        # Premium competencies (only for non-Officer/Senior)
+        premium_fields = ["strategic_thinking", "talent_management", "teamwork_leadership"]
+        premium_req_fields = ["strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]
+        
         # Validate forbid inputing competency premium for Officer/Senior
         if title in ["Officer", "Senior"]:
-            forbidden = [
-                "strategic_thinking", "talent_management", "teamwork_leadership",
-                "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"
-            ]
-            for f in forbidden:
+            for f in premium_fields + premium_req_fields:
                 val = row.get(f)
                 if pd.notna(val) and str(val).strip() != "":
                     errors.append(f"{title} not allowed to fill {f}")
+                # Set to None for Officer/Senior
+                data[f] = None
+        else:
+            # For non-Officer/Senior, premium fields are part of core
+            core_fields += premium_fields
+            core_req_fields += premium_req_fields
 
-        # Check range 1.0–5.0
+        new_fields = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
+        new_req_fields = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
+
+        # 1) Core competencies must NOT be null (except premium for Officer/Senior which are already set to None)
+        # Ensure all core fields are in data dict (even if column doesn't exist in Excel)
+        for key in core_fields + core_req_fields:
+            if key not in data:
+                # Column doesn't exist in Excel, treat as missing
+                data[key] = None
+            val = data.get(key)
+            if val is None:
+                errors.append(f"Missing value for {key} (core competency)")
+
+        # 2) Range check 1.0–5.0 for all non-null numeric fields (core & new)
         for key, val in data.items():
             if val is not None and (val < 1.0 or val > 5.0):
                 errors.append(f"Invalid value {val} for {key}")
