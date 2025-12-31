@@ -86,12 +86,12 @@
             <select name="division" class="form-select" required>
               <option value="">-- Select Division --</option>
               {% for d in [
-                "BOM 1","BOM 2","Company Secretariat","Finance and Advisory Division","Product Department",
-                "Marketing Division","Customer Care Center","Finance Division",
+                "Office Assistant Division","Company Secretariat Division","Product Department",
+                "Marketing Division","Finance Division",
                 "Accounting Division","Risk Management Division","Securities Service Division",
                 "Internal Control Division","Dealing Division","Advisory Division","Research Division",
-                "Legal Affairs Division","IT Division","Human Resources Division","General Affairs Division",
-                "Brokerage Division","Covered Warrant Division"
+                "Legal Affairs Division","IT Division","People & Workplace Division",
+                "Brokerage Division","Covered Warrant Division", "Internal Audit Division"
               ] %}
                 <option value="{{d}}" {% if form_data and form_data.division == d %}selected{% endif %}>{{d}}</option>
               {% endfor %}
@@ -99,14 +99,14 @@
           </div>
 
           <div class="col-md-6">
-            <label class="form-label">Department</label>
+            <label class="form-label">Department/Function</label>
             <select name="department" class="form-select" required>
               <option value="">-- Select Department --</option>
               {% for dep in [
-                "No department","Brokerage Management Department","Secretariat",
-                "Account Management Department","Institutional Business Department",
-                "Network Management Department","Software Department","System Department",
-                "Talent Acquisition Department","Total Rewards Department",
+                "No department","Customer Care Department","Business Analysis(Function)","Workplace(Receptionist)","Consultant(Function)","Brokerage Management Department",
+                "Account Management Department","Institutional Business Department","Margin & Settlement(Financial Product)","Margin & Settlement (Operation)",
+                "Network Management Department","Software Department","System Department", "Data Engineer(Function)",
+                "Talent Acquisition Department","Total Rewards Department","Workplace(Purchasing)", "Workplace(General)", 
                 "Learning & Development Department","Employee Engagement & Employer Branding Department",
                 "Settlement & Margin Department","Depository Trading Department","Business Support Department"
               ] %}
