@@ -141,23 +141,22 @@ def employees():
 
     return render_template("employees.html", rows=rows, search=search)
 
-
 # --- \Add member ---
 @app.route("/submit", methods=["POST"])
 def submit():
+    from statistics import stdev
     f = request.form
     year, code, full_name = f.get("year"), f.get("code"), f.get("full_name")
     title, department, division = f.get("title"), f.get("department"), f.get("division")
 
-    # Convert safely to float 1.0–5.0
     def safe_float(v):
         try:
             val = float(v)
-            if val < 1.0 or val > 5.0:
-                return None
-            return val
+            if 1.0 <= val <= 5.0:
+                return val
         except:
-            return None
+            pass
+        return None
 
     all_fields = [
         "communication", "continuous_learning", "critical_thinking",
@@ -176,22 +175,6 @@ def submit():
                   "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]:
             data[k] = None
 
-    def classify(score_keys, req_keys):
-        scores = [data[k] for k in score_keys if data[k] is not None]
-        reqs = [data[k] for k in req_keys if data[k] is not None]
-        if not scores or not reqs:
-            return "N/A"
-        total_score = sum(scores)
-        total_req = sum(reqs)
-        if total_req == 0:
-            return "N/A"
-        pct = (total_score / total_req) * 100
-        if pct < 70:
-            return "Low"
-        elif pct > 90:
-            return "High"
-        return "Medium"
-
     core_keys = ["communication", "continuous_learning", "critical_thinking",
                  "data_analysis", "digital_literacy", "problem_solving"]
     core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
@@ -204,39 +187,40 @@ def submit():
     new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
     new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
 
-    # Validate: Core competencies (actual + required) must NOT be null
-    # except strategic_thinking / talent_management / teamwork_leadership for Officer/Senior
-    required_core_fields = core_keys + core_req_keys
-    missing_core = [k for k in required_core_fields if data.get(k) is None]
+    missing_core = [k for k in core_keys + core_req_keys if data.get(k) is None]
     if missing_core:
-        flash(
-            "Core competencies (actual & required) must not be empty. "
-            "Please fill all core competency fields between 1.0 and 5.0.",
-            "danger",
-        )
+        flash("Core competencies must not be empty and must be between 1.0 and 5.0", "danger")
         session["form_data"] = request.form.to_dict()
         return redirect(url_for("index"))
 
-    class_core = classify(core_keys, core_req_keys)
-    class_new = classify(new_keys, new_req_keys)
-
-    # === Insert database ===
     conn = get_connection()
     c = conn.cursor()
     table_name = "public.employee" if not isinstance(conn, sqlite3.Connection) else "employee"
     placeholders = get_placeholder(conn, 34)
 
-    # Check duplicate code with same year
     query_check = f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = %s AND year = %s" \
         if not isinstance(conn, sqlite3.Connection) else \
         f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(code) = ? AND year = ?"
     c.execute(query_check, (code.lower(), year))
-    exists = c.fetchone()[0]
-    if exists:
+    if c.fetchone()[0] > 0:
         conn.close()
-        flash(f"Employee code '{code}' already exists for year '{year}'. Please choose another code or year.", "danger")
+        flash(f"Employee code '{code}' already exists for year '{year}'.", "danger")
         session["form_data"] = request.form.to_dict()
         return redirect(url_for("index"))
+
+    def calculate_pct(score_keys, req_keys):
+        scores = [data[k] for k in score_keys if data[k] is not None]
+        reqs = [data[k] for k in req_keys if data[k] is not None]
+        if not scores or not reqs:
+            return None
+        total_score = sum(scores)
+        total_req = sum(reqs)
+        if total_req == 0:
+            return None
+        return (total_score / total_req) * 100
+
+    pct_core = calculate_pct(core_keys, core_req_keys)
+    pct_new = calculate_pct(new_keys, new_req_keys)
 
     c.execute(f"""
         INSERT INTO {table_name} (
@@ -258,13 +242,53 @@ def submit():
         *[data[k] for k in all_fields[9:18]],
         *[data[k] for k in all_fields[18:22]],
         *[data[k] for k in all_fields[22:26]],
-        class_core, class_new
+        "Pending", "Pending"
     ))
     conn.commit()
+
+    # Update classification for all employees
+    update_classification_for_all(conn, table_name, core_keys, core_req_keys, "classification_core")
+    update_classification_for_all(conn, table_name, new_keys, new_req_keys, "classification_new")
+
     conn.close()
-    flash("Employee data submitted successfully!", "success")
+    flash("Employee submitted and all classifications updated.", "success")
     return redirect("/employees")
 
+def update_classification_for_all(conn, table_name, score_keys, req_keys, field_to_update):
+    import statistics
+    c = conn.cursor()
+
+    query = f"""
+        SELECT id,
+            (CAST({'+'.join(score_keys)} AS FLOAT)) * 1.0 /
+            NULLIF(CAST({'+'.join(req_keys)} AS FLOAT), 0) * 100 AS pct
+        FROM {table_name}
+        WHERE {' AND '.join([f"{k} IS NOT NULL" for k in score_keys + req_keys])}
+    """
+    c.execute(query)
+    rows = [(r[0], r[1]) for r in c.fetchall() if r[1] is not None]
+    if len(rows) < 2:
+        return  # Not enough data to classify
+
+    pcts = [r[1] for r in rows]
+    pct_min = min(pcts)
+    pct_max = max(pcts)
+    pct_sd = statistics.stdev(pcts)
+    high_thres = pct_max - pct_sd
+    low_thres = pct_min + pct_sd
+
+    for emp_id, pct in rows:
+        if pct > high_thres:
+            label = "High"
+        elif pct < low_thres:
+            label = "Low"
+        else:
+            label = "Medium"
+        update_q = f"UPDATE {table_name} SET {field_to_update} = %s WHERE id = %s" \
+            if not isinstance(conn, sqlite3.Connection) else \
+            f"UPDATE {table_name} SET {field_to_update} = ? WHERE id = ?"
+        c.execute(update_q, (label, emp_id))
+    conn.commit()
 
 @app.route("/upload", methods=["POST"])
 def upload_excel():
@@ -475,24 +499,40 @@ def delete_selected():
     ids = tuple(int(i) for i in ids)
     conn = get_connection()
     c = conn.cursor()
-
     table_name = "public.employee" if not isinstance(conn, sqlite3.Connection) else "employee"
-
     placeholders = ",".join(["?"] * len(ids)) if isinstance(conn, sqlite3.Connection) else ",".join(["%s"] * len(ids))
 
     try:
+        # 1. Xóa bản ghi
         query = f"DELETE FROM {table_name} WHERE id IN ({placeholders})"
         c.execute(query, ids)
         conn.commit()
-        flash(f" Deleted {len(ids)} record(s) successfully!", "success")
+
+        # 2. Cập nhật lại phân loại cho toàn bộ dữ liệu còn lại
+        core_keys = ["communication", "continuous_learning", "critical_thinking",
+                     "data_analysis", "digital_literacy", "problem_solving",
+                     "strategic_thinking", "talent_management", "teamwork_leadership"]
+        core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
+                         "data_analysis_req", "digital_literacy_req", "problem_solving_req",
+                         "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]
+
+        new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
+        new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
+
+        update_classification_for_all(conn, table_name, core_keys, core_req_keys, "classification_core")
+        update_classification_for_all(conn, table_name, new_keys, new_req_keys, "classification_new")
+
+        flash(f"Deleted {len(ids)} record(s) and updated classification successfully!", "success")
+
     except Exception as e:
         conn.rollback()
-        flash(f" Error deleting: {e}", "danger")
+        flash(f"Error deleting: {e}", "danger")
     finally:
         c.close()
         conn.close()
 
     return redirect(url_for("employees"))
+
 
 
 
