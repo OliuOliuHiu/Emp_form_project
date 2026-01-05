@@ -153,7 +153,7 @@ def submit():
         try:
             val = float(v)
             if 1.0 <= val <= 5.0:
-                return val
+                return round(val,1)
         except:
             pass
         return None
@@ -300,15 +300,16 @@ def update_classification_for_all(conn, table_name, score_keys_all, req_keys_all
         return
 
     pcts = [r[1] for r in rows]
-    avg = statistics.mean(pcts)
+    pct_min = min(pcts)
+    pct_max = max(pcts)
     sd = statistics.stdev(pcts)
-    high_thres = avg + sd
-    low_thres = avg - sd
+    high_thres = pct_max - sd
+    low_thres = pct_min + sd
 
     for emp_id, pct in rows:
-        if pct >= high_thres:
+        if pct > high_thres:
             label = "High"
-        elif pct <= low_thres:
+        elif pct < low_thres:
             label = "Low"
         else:
             label = "Medium"
@@ -345,7 +346,7 @@ def upload_excel():
             val = float(v)
             if val < 1.0 or val > 5.0:
                 return None
-            return val
+            return round(val,1)
         except:
             return None
 
