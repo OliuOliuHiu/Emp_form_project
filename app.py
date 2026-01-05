@@ -254,36 +254,65 @@ def submit():
     flash("Employee submitted and all classifications updated.", "success")
     return redirect("/employees")
 
-def update_classification_for_all(conn, table_name, score_keys, req_keys, field_to_update):
+def update_classification_for_all(conn, table_name, score_keys_all, req_keys_all, field_to_update):
     import statistics
     c = conn.cursor()
 
-    query = f"""
-        SELECT id,
-            (CAST({'+'.join(score_keys)} AS FLOAT)) * 1.0 /
-            NULLIF(CAST({'+'.join(req_keys)} AS FLOAT), 0) * 100 AS pct
-        FROM {table_name}
-        WHERE {' AND '.join([f"{k} IS NOT NULL" for k in score_keys + req_keys])}
-    """
-    c.execute(query)
-    rows = [(r[0], r[1]) for r in c.fetchall() if r[1] is not None]
+    # Lấy tất cả bản ghi cùng với title và các trường cần thiết
+    c.execute(f"SELECT id, title, {', '.join(score_keys_all + req_keys_all)} FROM {table_name}")
+    rows_raw = c.fetchall()
+
+    rows = []
+    for row in rows_raw:
+        emp_id = row[0]
+        title = row[1]
+        values = dict(zip(score_keys_all + req_keys_all, row[2:]))
+
+        if title in ["Officer", "Senior"]:
+            # Chỉ cần 6 core
+            keys = [
+                "communication", "continuous_learning", "critical_thinking",
+                "data_analysis", "digital_literacy", "problem_solving"
+            ]
+        else:
+            # Đủ 9 core
+            keys = score_keys_all
+
+        req_keys = [k + "_req" for k in keys]
+
+        # Lấy điểm thực và yêu cầu
+        scores = [values.get(k) for k in keys if values.get(k) is not None]
+        reqs = [values.get(k) for k in req_keys if values.get(k) is not None]
+
+        # Nếu thiếu trường nào → bỏ qua dòng
+        if len(scores) != len(keys) or len(reqs) != len(req_keys):
+            continue
+
+        total_score = sum(scores)
+        total_req = sum(reqs)
+        if total_req == 0:
+            continue
+
+        pct = (total_score / total_req) * 100
+        rows.append((emp_id, pct))
+
     if len(rows) < 2:
-        return  # Not enough data to classify
+        return
 
     pcts = [r[1] for r in rows]
-    pct_min = min(pcts)
-    pct_max = max(pcts)
-    pct_sd = statistics.stdev(pcts)
-    high_thres = pct_max - pct_sd
-    low_thres = pct_min + pct_sd
+    avg = statistics.mean(pcts)
+    sd = statistics.stdev(pcts)
+    high_thres = avg + sd
+    low_thres = avg - sd
 
     for emp_id, pct in rows:
-        if pct > high_thres:
+        if pct >= high_thres:
             label = "High"
-        elif pct < low_thres:
+        elif pct <= low_thres:
             label = "Low"
         else:
             label = "Medium"
+
         update_q = f"UPDATE {table_name} SET {field_to_update} = %s WHERE id = %s" \
             if not isinstance(conn, sqlite3.Connection) else \
             f"UPDATE {table_name} SET {field_to_update} = ? WHERE id = ?"
@@ -534,8 +563,6 @@ def delete_selected():
     return redirect(url_for("employees"))
 
 
-
-
 # --- Export Excel ---
 @app.route("/export")
 def export_data():
@@ -603,51 +630,21 @@ def extra_info():
     conn = get_connection()
     c = conn.cursor()
     table_name = "public.employee" if not isinstance(conn, sqlite3.Connection) else "employee"
-
     placeholders = get_placeholder(conn, 34)
 
-    # Insert line by line valid_rows
+    all_fields = [
+        "communication", "continuous_learning", "critical_thinking", "data_analysis",
+        "digital_literacy", "problem_solving", "strategic_thinking", "talent_management",
+        "teamwork_leadership", "communication_req", "continuous_learning_req",
+        "critical_thinking_req", "data_analysis_req", "digital_literacy_req",
+        "problem_solving_req", "strategic_thinking_req", "talent_management_req",
+        "teamwork_leadership_req", "creative_thinking", "resilience", "ai_bigdata",
+        "analytical_thinking", "creative_thinking_req", "resilience_req", "ai_bigdata_req",
+        "analytical_thinking_req"
+    ]
+
+    # === 1. Insert dữ liệu (classification để tạm Pending) ===
     for row in valid_rows:
-        # calculate classification before insert data
-        def classify(score_keys, req_keys):
-            scores = [row.get(k) for k in score_keys if row.get(k) is not None]
-            reqs = [row.get(k) for k in req_keys if row.get(k) is not None]
-            if not scores or not reqs:
-                return "N/A"
-            total_score = sum(scores)
-            total_req = sum(reqs)
-            if total_req == 0:
-                return "N/A"
-            pct = (total_score / total_req) * 100
-            if pct < 70: return "Low"
-            elif pct > 90: return "High"
-            return "Medium"
-
-        core_keys = ["communication", "continuous_learning", "critical_thinking",
-                     "data_analysis", "digital_literacy", "problem_solving"]
-        core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
-                         "data_analysis_req", "digital_literacy_req", "problem_solving_req"]
-        if row["title"] not in ["Officer", "Senior"]:
-            core_keys += ["strategic_thinking", "talent_management", "teamwork_leadership"]
-            core_req_keys += ["strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]
-
-        new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
-        new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
-
-        class_core = classify(core_keys, core_req_keys)
-        class_new = classify(new_keys, new_req_keys)
-
-        all_fields = [
-            "communication", "continuous_learning", "critical_thinking", "data_analysis",
-            "digital_literacy", "problem_solving", "strategic_thinking", "talent_management",
-            "teamwork_leadership", "communication_req", "continuous_learning_req",
-            "critical_thinking_req", "data_analysis_req", "digital_literacy_req",
-            "problem_solving_req", "strategic_thinking_req", "talent_management_req",
-            "teamwork_leadership_req", "creative_thinking", "resilience", "ai_bigdata",
-            "analytical_thinking", "creative_thinking_req", "resilience_req", "ai_bigdata_req",
-            "analytical_thinking_req"
-        ]
-
         c.execute(f"""
             INSERT INTO {table_name} (
                 year, code, full_name, title, department, division,
@@ -658,10 +655,10 @@ def extra_info():
             row["year"], row["code"], row["full_name"], row["title"],
             row["department"], row["division"],
             *[row.get(k) for k in all_fields],
-            class_core, class_new
+            "Pending", "Pending"
         ))
 
-    # Log upload
+    # === 2. Log upload ===
     if isinstance(conn, sqlite3.Connection):
         c.execute("""
             CREATE TABLE IF NOT EXISTS upload_log (
@@ -681,19 +678,34 @@ def extra_info():
             )
         """)
 
-    placeholders = get_placeholder(conn, 5)
+    log_placeholders = get_placeholder(conn, 5)
     c.execute(f"""
         INSERT INTO upload_log (filename, handler, note, uploaded_records, skipped_records)
-        VALUES ({placeholders})
+        VALUES ({log_placeholders})
     """, (
         summary["filename"], handler, note,
         summary["success"], summary["skipped_count"]
     ))
 
+    # === 3. Re-classify toàn bộ dữ liệu trong DB ===
+    core_keys = ["communication", "continuous_learning", "critical_thinking",
+                 "data_analysis", "digital_literacy", "problem_solving",
+                 "strategic_thinking", "talent_management", "teamwork_leadership"]
+
+    core_req_keys = ["communication_req", "continuous_learning_req", "critical_thinking_req",
+                     "data_analysis_req", "digital_literacy_req", "problem_solving_req",
+                     "strategic_thinking_req", "talent_management_req", "teamwork_leadership_req"]
+
+    new_keys = ["creative_thinking", "resilience", "ai_bigdata", "analytical_thinking"]
+    new_req_keys = ["creative_thinking_req", "resilience_req", "ai_bigdata_req", "analytical_thinking_req"]
+
+    update_classification_for_all(conn, table_name, core_keys, core_req_keys, "classification_core")
+    update_classification_for_all(conn, table_name, new_keys, new_req_keys, "classification_new")
+
     conn.commit()
     conn.close()
 
-    flash("Upload saved successfully!", "success")
+    flash("Upload saved and classifications updated successfully!", "success")
     session.pop("upload_summary", None)
     return redirect(url_for("employees"))
 
