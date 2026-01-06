@@ -153,7 +153,7 @@ def submit():
         try:
             val = float(v)
             if 1.0 <= val <= 5.0:
-                return round(val,1)
+                return val
         except:
             pass
         return None
@@ -317,6 +317,10 @@ def update_classification_for_all(conn, table_name, score_keys_all, req_keys_all
         update_q = f"UPDATE {table_name} SET {field_to_update} = %s WHERE id = %s" \
             if not isinstance(conn, sqlite3.Connection) else \
             f"UPDATE {table_name} SET {field_to_update} = ? WHERE id = ?"
+        print(pct_max)
+        print(pct_min)
+        print(f"High if > {high_thres:.2f}, Low if < {low_thres:.2f}")
+        print(f"ID {emp_id} → PCT: {pct:.2f} → {label}")
         c.execute(update_q, (label, emp_id))
     conn.commit()
 
@@ -346,7 +350,7 @@ def upload_excel():
             val = float(v)
             if val < 1.0 or val > 5.0:
                 return None
-            return round(val,1)
+            return val
         except:
             return None
 
